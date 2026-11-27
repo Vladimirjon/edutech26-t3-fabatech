@@ -55,7 +55,9 @@ La meta concreta de horas ahorradas se fija y se mide en la spec. El techo es el
 
 ![Arquitectura de Asistencia en la puerta](docs/arquitectura.png)
 
-Fuente editable: [`docs/arquitectura.svg`](docs/arquitectura.svg), generada por [`scripts/diagrama_arquitectura.py`](scripts/diagrama_arquitectura.py).
+Fuente editable: [`docs/arquitectura.svg`](docs/arquitectura.svg). Se regenera con `python scripts/diagrama_arquitectura.py scripts/iconos docs/arquitectura.svg docs/_render.html`. Los logos son de [Simple Icons](https://simpleicons.org) (CC0).
+
+El diagrama tiene una zona por proveedor (Vercel, Telegram, Google AI Studio, n8n Cloud, Supabase y GitHub). Dentro de n8n hay una columna por workflow con sus nodos en orden. Los cuadros azules 1–9 son el flujo del demo y los grises D1–D4 son el despliegue.
 
 ### El flujo, paso a paso (los mismos números del diagrama)
 
@@ -89,7 +91,7 @@ Si hay tiempo, después del flujo principal:
 ### Entrega continua (nada se despliega a mano)
 
 - **En cada PR:** CI valida la estructura, los secretos, los JSON de n8n y las pruebas. Vercel crea una preview.
-- **Al fusionar a `main`**, en este orden (los números de la columna derecha del diagrama):
+- **Al fusionar a `main`**, en este orden (D1 a D4 en el diagrama):
   1. Migraciones de la base con `supabase db push` ([Supabase](https://supabase.com/docs/guides/deployment/managing-environments)). Siempre antes de publicar workflows.
   2. GitHub Actions publica los workflows en n8n por su API: `PUT` como borrador y luego `POST /publish` ([API de workflows](https://docs.n8n.io/connect/n8n-api/build-and-run/workflows)).
   3. Prueba de humo contra el webhook de producción, que comprueba que se escribió la fila.
