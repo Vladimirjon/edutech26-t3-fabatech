@@ -39,52 +39,63 @@ Todas las cifras tienen fuente. Lo que es cálculo propio está marcado.
 - No es un sistema de seguridad física ni policial.
 - La IA nunca decide sola si una falta queda justificada: lo aprueba una persona.
 
-## Solución (flujo principal del demo)
+## Cómo libera tiempo docente
 
-1. **Ingreso.** El inspector escanea el QR del carné con su teléfono en la puerta. La asistencia del día queda registrada al instante.
-2. **Ausencias.** Al cerrar el ingreso, n8n cruza la lista de cada curso con los ingresos y avisa a la familia de cada ausente por Telegram.
-3. **Justificativo.** La familia responde con texto, nota de voz o foto del certificado. La IA (Gemini) extrae estudiante, fechas y motivo en un JSON con esquema. Luego reglas deterministas validan:
-   - que el estudiante pertenece a ese representante;
-   - que las fechas coinciden con faltas reales;
-   - que el formato y el plazo son válidos.
-4. **Aprobación.** El inspector aprueba o rechaza con un toque en Telegram. La falta pasa a justificada y queda auditada.
-5. **Tablero en vivo.** Inspector y tutores ven ingresos, ausentes, justificativos pendientes y horas ahorradas, sin recargar la página.
+| Hoy (manual) | Con el sistema | Paso |
+| --- | --- | --- |
+| El docente toma lista en cada clase y la registra | La asistencia se registra sola cuando el inspector escanea el carné en la puerta | 1–2 |
+| Alguien llama o escribe a la familia de cada ausente | n8n detecta a los ausentes y escribe a cada familia por Telegram | 3 |
+| Se espera el justificativo, se lee y se transcribe a mano | La familia responde con texto, voz o foto; la IA extrae los datos y unas reglas fijas los validan | 4–6 |
+| Se revisa caso por caso con todo el contexto disperso | El inspector recibe el caso armado y aprueba o rechaza con un toque | 7 |
+| El tutor arma reportes del curso | El tutor ve su curso en vivo en el tablero | 9 |
 
-Si hay tiempo (después del flujo principal): salida con código de retiro de un solo uso para la familia, y modo emergencia (aviso masivo con acuse de lectura y lista de quién sigue dentro del plantel).
+La meta concreta de horas ahorradas se fija y se mide en la spec. El techo es el cálculo de la sección Evidencia.
 
 ## Arquitectura
 
-```mermaid
-flowchart LR
-  subgraph Puerta
-    A[Web app del inspector<br/>escáner QR] -->|webhook| N
-  end
-  subgraph Familias
-    T[Bot de Telegram] <--> N
-  end
-  N[n8n Cloud Starter<br/>workflows] -->|SQL| S[(Supabase Postgres)]
-  N -->|texto, voz, imagen| G[Gemini API]
-  G -->|JSON con esquema| R{Reglas deterministas}
-  R -->|válido| H[Aprobación humana<br/>Telegram Send and Wait]
-  R -->|inválido o la IA falla| M[Revisión manual del inspector]
-  H --> S
-  S -->|Realtime| D[Tablero web en Vercel]
-```
+![Arquitectura de Asistencia en la puerta](docs/arquitectura.png)
 
-| Pieza | Elección | Por qué (fuente) |
-| --- | --- | --- |
-| Orquestación | n8n Cloud Starter | API pública, 5 ejecuciones concurrentes, 2.500 ejecuciones al mes ([n8n pricing](https://n8n.io/pricing/), [API](https://docs.n8n.io/connect/n8n-api)) |
-| Canal con familias y aprobación | Telegram Trigger y "Send and Wait for Response" | Botones, voz y fotos; aprobación humana nativa ([docs n8n Telegram](https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.telegram/message-operations/#send-and-wait-for-response)) |
-| IA | Gemini, nivel gratis (texto, audio e imagen) | Entrada multimodal gratuita ([AI Studio pricing](https://aistudio.google.com/docs/pricing)) |
-| Datos y tiempo real | Supabase (Postgres, Realtime y RLS) | Postgres Changes en el plan gratis ([Supabase Realtime](https://supabase.com/docs/guides/realtime/postgres-changes)) |
-| Front | Vercel Hobby | Preview por PR y producción al fusionar ([Vercel](https://vercel.com/docs/deployments/environments#preview-environment-pre-production)) |
+Fuente editable: [`docs/arquitectura.svg`](docs/arquitectura.svg), generada por [`scripts/diagrama_arquitectura.py`](scripts/diagrama_arquitectura.py).
 
-**Ciclo de entrega (nada se despliega a mano):**
-- **PR:** CI valida la estructura, los secretos, los JSON de n8n y las pruebas. Vercel crea una preview.
-- **Merge a `main`:**
-  - GitHub Actions aplica las migraciones de Supabase (`supabase db push`);
-  - publica los workflows en n8n por su API (`PUT` como borrador y luego `POST /publish`);
-  - corre una prueba de humo contra el webhook de producción.
+### El flujo, paso a paso (los mismos números del diagrama)
+
+1. El inspector escanea el QR del carné en la puerta.
+2. La app envía el escaneo a **WF1 · Ingreso**, que registra «presente».
+3. Al cerrar el ingreso, **WF2 · Ausencias** detecta a los ausentes y escribe a cada familia.
+4. La familia responde con texto, nota de voz o foto (**WF3 · Justificativo**).
+5. **Gemini** extrae estudiante, fechas y motivo en un JSON con esquema.
+6. **Reglas deterministas** validan tres cosas: que el representante corresponda al estudiante, que las fechas sean faltas reales y que esté dentro del plazo. Si algo no cuadra, el caso va a **revisión manual**.
+7. **WF4 · Aprobación** pide al inspector aprobar o rechazar en Telegram (Send and Wait).
+8. Cada paso queda en **Postgres**, con auditoría.
+9. **Realtime** actualiza el tablero que ven el inspector y el tutor.
+
+**WF0 · Errores** (Error Trigger) avisa al equipo si cualquier ejecución falla.
+
+Si hay tiempo, después del flujo principal:
+- salida con código de retiro de un solo uso generado por la familia;
+- modo emergencia: aviso masivo con acuse de lectura y lista de quién sigue dentro del plantel.
+
+### Capas
+
+| Capa | Pieza | Elección | Por qué (fuente) |
+| --- | --- | --- | --- |
+| Personas | Inspector, familia, docente tutor | — | Quien vive el problema y quien lo aprueba |
+| Interfaces | App del inspector y tablero en vivo | Web en Vercel Hobby | Preview por PR y producción al fusionar ([Vercel](https://vercel.com/docs/deployments/environments#preview-environment-pre-production)) |
+| Interfaces | Bot de Telegram | Telegram Trigger y Send and Wait | Botones, voz y fotos; aprobación humana nativa ([n8n Telegram](https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.telegram/message-operations/#send-and-wait-for-response)) |
+| Orquestación | WF0 a WF4 | n8n Cloud Starter, instancia del equipo | API pública, 5 ejecuciones concurrentes, 2.500 ejecuciones al mes ([pricing](https://n8n.io/pricing/), [API](https://docs.n8n.io/connect/n8n-api)) |
+| IA y reglas | Gemini y reglas deterministas | Gemini, nivel gratis (texto, audio e imagen) | Entrada multimodal gratuita ([AI Studio](https://aistudio.google.com/docs/pricing)) |
+| Datos | Postgres, RLS y Realtime | Supabase, plan gratis | Postgres Changes actualiza el tablero sin recargar ([Supabase Realtime](https://supabase.com/docs/guides/realtime/postgres-changes)) |
+
+### Entrega continua (nada se despliega a mano)
+
+- **En cada PR:** CI valida la estructura, los secretos, los JSON de n8n y las pruebas. Vercel crea una preview.
+- **Al fusionar a `main`** (columna derecha del diagrama):
+  - **a.** Vercel publica la app y el tablero.
+  - **b.** GitHub Actions publica los workflows en n8n por su API: `PUT` como borrador y luego `POST /publish` ([API de workflows](https://docs.n8n.io/connect/n8n-api/build-and-run/workflows)).
+  - **c.** Prueba de humo contra el webhook de producción.
+  - **d.** Migraciones de la base con `supabase db push` ([Supabase](https://supabase.com/docs/guides/deployment/managing-environments)).
+
+**Pendiente de probar en vivo:** que la API key de la instancia del equipo publique un workflow de prueba. Si falla, el plan B es importar el JSON validado desde el editor.
 
 **Qué verifica el sistema y qué pasa si falla:**
 - La IA solo extrae datos. Reglas deterministas validan identidad, fechas contra faltas reales y formato, y una persona aprueba.
