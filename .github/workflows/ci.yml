@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  estructura:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Archivos obligatorios (Guía del hacker §4.2)
+        run: |
+          faltan=0
+          for f in README.md PRIOR_WORK.md AI_USAGE.md LICENSE .env.example data/README.md; do
+            [ -f "$f" ] || { echo "::error::Falta $f"; faltan=1; }
+          done
+          exit $faltan
+      - name: Sin archivos .env en el repositorio
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$'; then
+            echo "::error::Hay un archivo .env versionado"; exit 1
+          fi
+      - name: Workflows de n8n son JSON válido y sin pinData
+        run: |
+          for f in n8n/*.json; do
+            [ -e "$f" ] || continue
+            python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit('pinData no vacío en '+sys.argv[1] if d.get('pinData') else 0)" "$f"
+          done
