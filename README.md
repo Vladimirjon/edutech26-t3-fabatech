@@ -43,7 +43,7 @@ Todas las cifras tienen fuente. Lo que es cálculo propio está marcado.
 
 | Hoy (manual) | Con el sistema | Paso |
 | --- | --- | --- |
-| El docente toma lista en cada clase y la registra | La asistencia se registra sola cuando el inspector escanea el carné en la puerta | 1–2 |
+| El docente toma lista en cada clase y la registra | La asistencia se registra sola cuando el estudiante escanea su carné en el tótem de la puerta (o el inspector con la app) | 1–2 |
 | Alguien llama o escribe a la familia de cada ausente | n8n detecta a los ausentes y escribe a cada familia por Telegram | 3 |
 | Se espera el justificativo, se lee y se transcribe a mano | La familia responde con texto, voz o foto; la IA extrae los datos y unas reglas fijas los validan | 4–6 |
 | Se revisa caso por caso con todo el contexto disperso | El inspector recibe el caso armado y aprueba o rechaza con un toque | 7 |
@@ -59,8 +59,8 @@ Fuente editable: [`docs/arquitectura.svg`](docs/arquitectura.svg), generada por 
 
 ### El flujo, paso a paso (los mismos números del diagrama)
 
-1. El inspector escanea el QR del carné en la puerta.
-2. La app envía el escaneo a **WF1 · Ingreso**, que registra «presente».
+1. El estudiante escanea su carné en el **tótem de autoservicio** (lector QR USB o cámara en una tablet fija). El inspector usa la misma app desde su celular solo para casos puntuales. Así la puerta no se vuelve un cuello de botella.
+2. El escaneo llega a **WF1 · Ingreso**, que registra «presente».
 3. Al cerrar el ingreso, **WF2 · Ausencias** detecta a los ausentes y escribe a cada familia.
 4. La familia responde con texto, nota de voz o foto (**WF3 · Justificativo**).
 5. **Gemini** extrae estudiante, fechas y motivo en un JSON con esquema.
@@ -80,7 +80,7 @@ Si hay tiempo, después del flujo principal:
 | Capa | Pieza | Elección | Por qué (fuente) |
 | --- | --- | --- | --- |
 | Personas | Inspector, familia, docente tutor | — | Quien vive el problema y quien lo aprueba |
-| Interfaces | App del inspector y tablero en vivo | Web en Vercel Hobby | Preview por PR y producción al fusionar ([Vercel](https://vercel.com/docs/deployments/environments#preview-environment-pre-production)) |
+| Interfaces | Puerta (tótem o app) y tablero en vivo | Web en Vercel Hobby | Preview por PR y producción al fusionar ([Vercel](https://vercel.com/docs/deployments/environments#preview-environment-pre-production)) |
 | Interfaces | Bot de Telegram | Telegram Trigger y Send and Wait | Botones, voz y fotos; aprobación humana nativa ([n8n Telegram](https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.telegram/message-operations/#send-and-wait-for-response)) |
 | Orquestación | WF0 a WF4 | n8n Cloud Starter, instancia del equipo | API pública, 5 ejecuciones concurrentes, 2.500 ejecuciones al mes ([pricing](https://n8n.io/pricing/), [API](https://docs.n8n.io/connect/n8n-api)) |
 | IA y reglas | Gemini y reglas deterministas | Gemini, nivel gratis (texto, audio e imagen) | Entrada multimodal gratuita ([AI Studio](https://aistudio.google.com/docs/pricing)) |
@@ -89,11 +89,11 @@ Si hay tiempo, después del flujo principal:
 ### Entrega continua (nada se despliega a mano)
 
 - **En cada PR:** CI valida la estructura, los secretos, los JSON de n8n y las pruebas. Vercel crea una preview.
-- **Al fusionar a `main`** (columna derecha del diagrama):
-  - **a.** Vercel publica la app y el tablero.
-  - **b.** GitHub Actions publica los workflows en n8n por su API: `PUT` como borrador y luego `POST /publish` ([API de workflows](https://docs.n8n.io/connect/n8n-api/build-and-run/workflows)).
-  - **c.** Prueba de humo contra el webhook de producción.
-  - **d.** Migraciones de la base con `supabase db push` ([Supabase](https://supabase.com/docs/guides/deployment/managing-environments)).
+- **Al fusionar a `main`**, en este orden (los números de la columna derecha del diagrama):
+  1. Migraciones de la base con `supabase db push` ([Supabase](https://supabase.com/docs/guides/deployment/managing-environments)). Siempre antes de publicar workflows.
+  2. GitHub Actions publica los workflows en n8n por su API: `PUT` como borrador y luego `POST /publish` ([API de workflows](https://docs.n8n.io/connect/n8n-api/build-and-run/workflows)).
+  3. Prueba de humo contra el webhook de producción, que comprueba que se escribió la fila.
+  4. Vercel publica la app y el tablero.
 
 **Pendiente de probar en vivo:** que la API key de la instancia del equipo publique un workflow de prueba. Si falla, el plan B es importar el JSON validado desde el editor.
 
