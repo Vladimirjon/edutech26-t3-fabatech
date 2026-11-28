@@ -1,0 +1,406 @@
+{
+  "name": "WF2 · Ausencias",
+  "description": "Cierre diario de asistencia: registra faltas injustificadas, eventos y auditoría en Postgres, y notifica por familia en Telegram.",
+  "nodes": [
+    {
+      "id": "47da3758-4712-4042-ac3a-b267b27f37d3",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        160
+      ],
+      "parameters": {
+        "authentication": "none",
+        "httpMethod": "POST",
+        "options": {
+          "allowedOrigins": "https://portika.vercel.app"
+        },
+        "path": "portika/cierre",
+        "responseMode": "responseNode"
+      },
+      "webhookId": "ab9df892-0f37-4e72-8cc6-b23152d32395"
+    },
+    {
+      "id": "1809eef3-e5d1-4436-897c-bba9a9c4babb",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        384
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "expression": "30 7 * * 1-5",
+              "field": "cronExpression"
+            }
+          ]
+        }
+      },
+      "disabled": true
+    },
+    {
+      "id": "9ffeb03e-a4db-41c7-ba83-cad3f4e1d1a8",
+      "name": "Entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        272
+      ],
+      "parameters": {
+        "jsCode": "const es_webhook = Boolean($json.headers);\n\nif (!es_webhook) {\n  const fecha = new Intl.DateTimeFormat('en-CA', {\n    timeZone: 'America/Guayaquil',\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit',\n  }).format(new Date());\n\n  return { json: { es_webhook: false, fecha, clave: '' } };\n}\n\nconst headers = $json.headers && typeof $json.headers === 'object' ? $json.headers : {};\nlet clave = '';\nfor (const [k, v] of Object.entries(headers)) {\n  if (k.toLowerCase() === 'x-portika-clave') {\n    clave = String(v ?? '');\n    break;\n  }\n}\n\nconst rawFecha = $json.body?.fecha;\nlet fecha = null;\nif (typeof rawFecha === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(rawFecha)) {\n  const [y, m, d] = rawFecha.split('-').map(Number);\n  const dt = new Date(Date.UTC(y, m - 1, d));\n  if (\n    !Number.isNaN(dt.getTime()) &&\n    dt.getUTCFullYear() === y &&\n    dt.getUTCMonth() === m - 1 &&\n    dt.getUTCDate() === d\n  ) {\n    fecha = rawFecha;\n  }\n}\n\nreturn { json: { es_webhook: true, fecha, clave } };",
+        "language": "javaScript",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "bbf522aa-e076-445b-9755-70493b2ac780",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        480,
+        272
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ [ $json.clave, $json.fecha, $json.es_webhook ] }}"
+        },
+        "query": "with auth as materialized (\n    select (not $3::boolean)\n        or exists (\n            select 1\n            from public.configuracion\n            where clave = 'portika_clave_dispositivo'\n              and valor = $1\n              and $1 <> ''\n        ) as ok\n), fecha_obj as materialized (\n    select case\n        when $2::text ~ '^\\d{4}-\\d{2}-\\d{2}$' then $2::date\n        else null::date\n    end as fecha\n), objetivo as materialized (\n    select e.codigo as estudiante_codigo,\n           e.curso,\n           e.paralelo,\n           r.codigo as representante_codigo,\n           r.telegram_chat_id,\n           fo.fecha\n    from fecha_obj fo\n    cross join public.estudiantes e\n    join public.representantes r on r.codigo = e.representante_codigo\n    where (select ok from auth)\n      and fo.fecha is not null\n      and e.codigo <> 'EST-999'\n      and e.curso <> 'PRUEBA'\n      and not exists (\n          select 1\n          from public.ingresos i\n          where i.estudiante_codigo = e.codigo\n            and i.fecha = fo.fecha\n      )\n), faltas_nuevas as (\n    insert into public.faltas (estudiante_codigo, fecha, estado)\n    select estudiante_codigo, fecha, 'injustificada'\n    from objetivo\n    on conflict (estudiante_codigo, fecha) do nothing\n    returning id, estudiante_codigo, fecha\n), eventos as (\n    insert into public.eventos_tablero (tipo, curso, paralelo)\n    select 'ausencia', o.curso, o.paralelo\n    from faltas_nuevas fn\n    join objetivo o on o.estudiante_codigo = fn.estudiante_codigo\n), auditoria as (\n    insert into public.auditoria (actor, accion, entidad, entidad_id)\n    select 'sistema:WF2', 'ausencia', 'faltas', id::text\n    from faltas_nuevas\n)\nselect (select ok from auth) as autorizado,\n       fn.estudiante_codigo,\n       fn.fecha::text as fecha,\n       o.representante_codigo,\n       o.telegram_chat_id::text as telegram_chat_id\nfrom (values (1)) as base(fila)\nleft join faltas_nuevas fn on true\nleft join objetivo o on o.estudiante_codigo = fn.estudiante_codigo;\n"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "L7pCp0sFwXKrC2OB",
+          "name": "Postgres Portika"
+        }
+      }
+    },
+    {
+      "id": "88bfb8a5-d681-4390-9a5f-122ed0fedcb8",
+      "name": "Autorizado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        720,
+        272
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.autorizado }}",
+              "operator": {
+                "operation": "false",
+                "singleValue": true,
+                "type": "boolean"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "15828ee8-6e46-4fff-aff7-db98adefa07f",
+      "name": "No autorizado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        128
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 401
+        },
+        "respondWith": "json",
+        "responseBody": "={{ { estado: 'no_autorizado' } }}"
+      }
+    },
+    {
+      "id": "32213968-7a9f-4e17-ab17-7d92afc75098",
+      "name": "Agrupar Familias",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const MESES = [\n  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',\n  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',\n];\n\nfunction formatearCodigos(codigos) {\n  if (codigos.length === 1) return codigos[0];\n  if (codigos.length === 2) return `${codigos[0]} y ${codigos[1]}`;\n  return `${codigos.slice(0, -1).join(', ')} y ${codigos[codigos.length - 1]}`;\n}\n\nfunction formatearFechaEs(fechaIso) {\n  const [, mesNum, diaNum] = String(fechaIso).split('-').map(Number);\n  return `${diaNum} de ${MESES[mesNum - 1]}`;\n}\n\nconst es_webhook = Boolean($('Entrada').first().json.es_webhook);\nconst filas = $input.all()\n  .map((item) => item.json)\n  .filter((row) => row.estudiante_codigo !== null && row.estudiante_codigo !== undefined);\n\nconst faltas_creadas = filas.length;\nconst grupos = new Map();\n\nfor (const fila of filas) {\n  const rep = String(fila.representante_codigo);\n  if (!grupos.has(rep)) {\n    grupos.set(rep, {\n      representante_codigo: rep,\n      telegram_chat_id: fila.telegram_chat_id ? String(fila.telegram_chat_id).trim() : null,\n      fecha: String(fila.fecha).slice(0, 10),\n      estudiantes: [],\n    });\n  }\n  grupos.get(rep).estudiantes.push(String(fila.estudiante_codigo));\n}\n\nlet sin_contacto = 0;\nconst envios = [];\n\nconst representantesOrdenados = [...grupos.keys()].sort();\nfor (const rep of representantesOrdenados) {\n  const grupo = grupos.get(rep);\n  const estudiantesOrdenados = [...new Set(grupo.estudiantes)].sort();\n  if (!grupo.telegram_chat_id) {\n    sin_contacto += estudiantesOrdenados.length;\n    continue;\n  }\n  const codigos = formatearCodigos(estudiantesOrdenados);\n  const fechaTexto = formatearFechaEs(grupo.fecha);\n  const mensaje = `Hola, en Pórtika no registramos el ingreso de ${codigos} hoy ${fechaTexto}. Si faltó por un motivo, respóndenos aquí con un texto, una nota de voz o la foto del justificativo.`;\n  envios.push({\n    representante_codigo: rep,\n    telegram_chat_id: grupo.telegram_chat_id,\n    estudiantes: estudiantesOrdenados,\n    fecha: grupo.fecha,\n    mensaje,\n  });\n}\n\nreturn [\n  {\n    json: {\n      es_webhook,\n      faltas_creadas,\n      mensajes_enviados: envios.length,\n      sin_contacto,\n      envios,\n    },\n  },\n];",
+        "language": "javaScript",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "1bdccd60-2b75-4c9a-947f-f222620d6813",
+      "name": "Split Out",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        304
+      ],
+      "parameters": {
+        "fieldToSplitOut": "envios",
+        "include": "noOtherFields"
+      }
+    },
+    {
+      "id": "76f4e8ef-f4b7-462b-8555-4fcbb435a93f",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        304
+      ],
+      "parameters": {
+        "additionalFields": {
+          "appendAttribution": false
+        },
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "operation": "sendMessage",
+        "resource": "message",
+        "text": "={{ $json.mensaje }}"
+      },
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "webhookId": "8e09fc11-d69c-428b-82b5-a1114be02259",
+      "credentials": {
+        "telegramApi": {
+          "id": "uCJxcnNOFfvYnRgN",
+          "name": "Telegram Portika"
+        }
+      }
+    },
+    {
+      "id": "02ad4cdf-7d4b-4b7f-9f5d-d9e2b8b28138",
+      "name": "Es Webhook?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1200,
+        496
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.es_webhook }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "e2249bd6-aad3-4ebb-823f-67175ba419ba",
+      "name": "Responder cierre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1440,
+        496
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        },
+        "respondWith": "json",
+        "responseBody": "={{ { faltas_creadas: $json.faltas_creadas, mensajes_enviados: $json.mensajes_enviados, sin_contacto: $json.sin_contacto } }}"
+      }
+    },
+    {
+      "id": "1a9a5f09-58ab-448a-b7fc-3449a2ea6f07",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "color": 7,
+        "content": "## WF2 · Ausencias\nSchedule (L-V 07:30 America/Guayaquil) y webhook POST portika/cierre.\nRegistra faltas injustificadas + eventos + auditoría en un único CTE (C1, C3) y notifica por familia en Telegram.",
+        "height": 128,
+        "width": 520
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entrada": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Autorizado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autorizado?": {
+      "main": [
+        [
+          {
+            "node": "No autorizado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agrupar Familias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agrupar Familias": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Es Webhook?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es Webhook?": {
+      "main": [
+        [
+          {
+            "node": "Responder cierre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "America/Guayaquil",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "versionId": "7c19e1fd-7fd0-425f-95dc-3d307127450d",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [
+    {
+      "id": "8cb07298-9f19-407c-90a6-d1af974c5784",
+      "name": "Registrar ausencias",
+      "nodeNames": [
+        "Entrada",
+        "Postgres",
+        "Autorizado?"
+      ],
+      "description": "Valida entrada y clave, registra faltas, eventos y auditoría en Postgres"
+    },
+    {
+      "id": "c3448cda-1623-4ddb-9fec-9a8f56e72b2f",
+      "name": "Notificar familias",
+      "nodeNames": [
+        "Split Out",
+        "Telegram"
+      ],
+      "description": "Divide envíos por familia y envía avisos de ausencia en Telegram"
+    },
+    {
+      "id": "77df1e1f-a5cc-4e4d-a650-68a2417afa0e",
+      "name": "Responder webhook",
+      "nodeNames": [
+        "Es Webhook?",
+        "Responder cierre"
+      ],
+      "description": "Responde JSON 200 solo cuando el disparo vino por Webhook"
+    }
+  ],
+  "id": "eUxqcbcHWeBsyQqE",
+  "tags": []
+}
