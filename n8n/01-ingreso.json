@@ -1,0 +1,217 @@
+{
+  "name": "WF1 · Ingreso",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "portika/ingreso",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://portika.vercel.app"
+        }
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        240
+      ],
+      "id": "282e2091-1e77-4d01-b6f0-07adae877587",
+      "webhookId": "a94ed663-0658-408c-9ebc-dce18859642b"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "with auth as materialized (\n    select 1\n    from public.configuracion\n    where clave = 'portika_clave_dispositivo' and valor = $1 and $1 <> ''\n), carne as materialized (\n    select e.codigo, e.nombre_ficticio, e.curso, e.paralelo,\n           nullif($3::text, '') as escaneado_en\n    from public.carnes c\n    join public.estudiantes e on e.codigo = c.estudiante_codigo\n    where exists (select 1 from auth)\n      and c.token = nullif($2, '') and c.activo\n), ingreso as (\n    insert into public.ingresos (estudiante_codigo, fecha, hora, origen)\n    select carne.codigo,\n           coalesce(\n               (select valor::date from public.configuracion where clave = 'fecha_demo'),\n               (escaneo.hora at time zone 'America/Guayaquil')::date\n           ),\n           escaneo.hora,\n           case when $4 in ('totem', 'app') then $4 else 'app' end\n    from carne\n    cross join lateral (\n        select coalesce(case\n            when length(escaneado_en) <= 128 and left(escaneado_en, 4) <> '0000'\n             and escaneado_en ~ '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9]([.][0-9]+)?)?(Z|[+-](0[0-9]|1[0-5]):?[0-5][0-9])$'\n            then case when substring(escaneado_en from 9 for 2)::int <= extract(day from (\n                make_date(left(escaneado_en, 4)::int, substring(escaneado_en from 6 for 2)::int, 1)\n                + interval '1 month' - interval '1 day'\n            )) then escaneado_en::timestamptz end\n        end, now()) as hora\n    ) escaneo\n    on conflict (estudiante_codigo, fecha) do update set hora = ingresos.hora\n    returning id, hora, (xmax = 0) as insertado\n), evento as (\n    insert into public.eventos_tablero (tipo, curso, paralelo)\n    select 'ingreso', carne.curso, carne.paralelo\n    from carne cross join ingreso\n    where ingreso.insertado\n), auditoria as (\n    insert into public.auditoria (actor, accion, entidad, entidad_id)\n    select 'sistema:WF1', 'ingreso', 'ingresos', id::text\n    from ingreso\n    where insertado\n)\nselect case\n           when not exists (select 1 from auth) then 'no_autorizado'\n           when carne.codigo is null then 'carne_desconocido'\n           when ingreso.insertado then 'registrado'\n           else 'duplicado'\n       end as estado,\n       case when carne.codigo is not null then jsonb_build_object(\n           'codigo', carne.codigo, 'nombre_ficticio', carne.nombre_ficticio,\n           'curso', carne.curso, 'paralelo', carne.paralelo\n       ) end as estudiante,\n       to_char(ingreso.hora at time zone 'America/Guayaquil', 'YYYY-MM-DD\"T\"HH24:MI:SS\"-05:00\"') as hora\nfrom (values (1)) as respuesta(fila)\nleft join carne on true\nleft join ingreso on true;\n",
+        "options": {
+          "queryReplacement": "={{ [ String($json.headers?.['x-portika-clave'] ?? ''), String($json.body?.carne_token ?? ''), String($json.body?.escaneado_en ?? ''), String($json.body?.origen ?? '') ] }}"
+        }
+      },
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        240,
+        240
+      ],
+      "id": "3784a6f6-aa8b-4cf4-807a-4970134d6268",
+      "credentials": {
+        "postgres": {
+          "id": "L7pCp0sFwXKrC2OB",
+          "name": "Postgres Portika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "={{ [\"no_autorizado\",\"carne_desconocido\",\"registrado\",\"duplicado\"].indexOf($json.estado) }}"
+      },
+      "name": "Estado",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        480,
+        240
+      ],
+      "id": "a1eec42c-16d4-4f2e-9ddf-d04dc16413aa"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"estado\":\"no_autorizado\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "no_autorizado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "id": "c0b538fb-4d71-48e5-a09c-1ea7834b6b83"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"estado\":\"carne_desconocido\"}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "name": "carne_desconocido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        160
+      ],
+      "id": "779de05b-4cbe-4602-9e9b-9e9d192025c9"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ estado: 'registrado', estudiante: $json.estudiante, hora: $json.hora }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "registrado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        320
+      ],
+      "id": "3403641f-ea28-4926-a1e1-7de8af554be3"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ estado: 'duplicado', estudiante: $json.estudiante, hora_original: $json.hora }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "duplicado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        480
+      ],
+      "id": "67aa4d0d-414b-41cf-8b76-3638b954ba70"
+    },
+    {
+      "parameters": {
+        "content": "Webhook portika/ingreso, validación de clave y carné, ingreso + evento + auditoría en una sola consulta (C2). Probado: registrado, duplicado, 401 y 404."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        240,
+        48
+      ],
+      "id": "7becf6c9-5a80-4382-8a88-69efe86cb21f",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estado": {
+      "main": [
+        [
+          {
+            "node": "no_autorizado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "carne_desconocido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "registrado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "duplicado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": -1,
+    "redactCallerExecutions": true
+  },
+  "versionId": "417afda0-d88e-45c3-8aec-be4f7d3972da",
+  "meta": {
+    "instanceId": "1041fee1073fb5e4f799ef5627361ca3235bf2fa6848c2248faa4abb95e4d475"
+  },
+  "nodeGroups": [],
+  "id": "2n7b6lYPCNvRyc7e",
+  "tags": []
+}
