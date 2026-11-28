@@ -1,0 +1,512 @@
+{
+  "name": "WF4 · Aprobación",
+  "description": "Subworkflow de aprobación del inspector (C7). Carga contexto, pide decisión en Telegram (24h), ejecuta CTE idempotente y avisa a la familia.",
+  "nodes": [
+    {
+      "id": "21bf34e7-187b-49d7-b657-8e596579e810",
+      "name": "Cuando lo llame WF3",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "id",
+              "type": "any"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fbadd225-5e5f-4954-ad32-6ed00758c351",
+      "name": "Cargar contexto",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        272,
+        128
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "with entrada as (\n    select case\n        when $1::text ~ '^\\d+$' then $1::bigint\n        else null::bigint\n    end as id\n)\nselect\n    j.id::text as id,\n    j.estado,\n    j.validacion,\n    j.extraccion,\n    j.foto_file_id,\n    j.mensaje_original,\n    j.estudiante_codigo,\n    e.nombre_ficticio as estudiante_nombre,\n    e.curso,\n    e.paralelo,\n    r.telegram_chat_id::text as telegram_chat_id,\n    (\n        select nullif(trim(valor), '')\n        from public.configuracion\n        where clave = 'inspector_chat_id'\n    ) as inspector_chat_id\nfrom (values (1)) as base(fila)\nleft join entrada en on true\nleft join public.justificativos j on j.id = en.id\nleft join public.estudiantes e on e.codigo = j.estudiante_codigo\nleft join public.representantes r on r.codigo = j.representante_codigo;\n",
+        "options": {
+          "queryReplacement": "={{ [ String($('Cuando lo llame WF3').item.json.id ?? '') ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "L7pCp0sFwXKrC2OB",
+          "name": "Postgres Portika"
+        }
+      }
+    },
+    {
+      "id": "0c2bdf00-bec0-4b98-aed8-e83e836a77b4",
+      "name": "Listo para revisar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        496,
+        128
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ['pendiente', 'revision_manual'].includes($('Cargar contexto').item.json.estado) && Boolean($('Cargar contexto').item.json.inspector_chat_id) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "1c81f3ca-429d-40c4-98cc-367a1e3302d5",
+      "name": "Preparar mensaje inspector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        128
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const ctx = $json;\nconst escMd = (v) => String(v ?? '').replace(/([_*`\\[])/g, '\\\\$1');\nconst esRevision = ctx.estado === 'revision_manual';\nconst tieneFoto = Boolean(ctx.foto_file_id && String(ctx.foto_file_id).trim());\n\nconst ex = ctx.extraccion && typeof ctx.extraccion === 'object' ? ctx.extraccion : {};\nconst val = ctx.validacion && typeof ctx.validacion === 'object' ? ctx.validacion : {};\n\nconst estudiante = ctx.estudiante_nombre\n  ? `${escMd(ctx.estudiante_nombre)}${ctx.estudiante_codigo ? ` (${escMd(ctx.estudiante_codigo)})` : ''}`\n  : (ctx.estudiante_codigo ? escMd(ctx.estudiante_codigo) : 'No identificado');\n\nconst curso = ctx.curso\n  ? `${escMd(ctx.curso)}${ctx.paralelo ? ` ${escMd(ctx.paralelo)}` : ''}`\n  : 'No identificado';\n\nconst fechasLista = Array.isArray(val.fechas) && val.fechas.length\n  ? val.fechas\n  : (Array.isArray(val.fechas_pedidas) && val.fechas_pedidas.length\n    ? val.fechas_pedidas\n    : (Array.isArray(ex.fechas) ? ex.fechas : []));\nconst fechasTexto = fechasLista.length ? fechasLista.map(escMd).join(', ') : 'Sin fechas';\n\nconst motivosTexto = {\n  salud: 'Salud',\n  calamidad_domestica: 'Calamidad doméstica',\n  transporte: 'Transporte',\n  tramite: 'Trámite',\n  otro: 'Otro',\n};\nconst motivoClave = typeof ex.motivo === 'string' ? ex.motivo : '';\nconst motivoNombre = motivosTexto[motivoClave] ?? (motivoClave ? escMd(motivoClave) : 'Sin especificar');\nconst resumen = typeof ex.resumen === 'string' && ex.resumen.trim()\n  ? escMd(ex.resumen.trim())\n  : (typeof ctx.mensaje_original === 'string' && ctx.mensaje_original.trim()\n    ? escMd(ctx.mensaje_original.trim().slice(0, 200))\n    : 'Sin detalle');\n\nconst reglas = Array.isArray(val.reglas) ? val.reglas : [];\nconst reglasLineas = reglas.length\n  ? reglas.map((r) => `${r.ok ? '✅' : '❌'} ${escMd(r.id)}: ${escMd(r.detalle ?? '')}`)\n  : ['ℹ️ Sin detalle de reglas'];\n\nconst cabecera = esRevision\n  ? `⚠️ *REVISIÓN MANUAL* · Justificativo #${escMd(ctx.id ?? '')}`\n  : `📋 *Justificativo #${escMd(ctx.id ?? '')}*`;\n\nconst lineas = [\n  cabecera,\n  `👤 Estudiante: ${estudiante}`,\n  `🏫 Curso: ${curso}`,\n  `📅 Fechas: ${fechasTexto}`,\n  `📝 Motivo: ${motivoNombre} — ${resumen}`,\n  `📎 Foto adjunta: ${tieneFoto ? 'Sí' : 'No'}`,\n  '',\n  'Reglas C6:',\n  ...reglasLineas,\n];\n\nreturn {\n  json: {\n    id: ctx.id ?? null,\n    estado: ctx.estado ?? null,\n    es_revision_manual: esRevision,\n    inspector_chat_id: ctx.inspector_chat_id ?? null,\n    foto_file_id: tieneFoto ? String(ctx.foto_file_id).trim() : null,\n    tiene_foto: tieneFoto,\n    mensaje: lineas.join('\\n'),\n  },\n};"
+      }
+    },
+    {
+      "id": "0cfa0b8a-499c-4923-b5bc-27d391fb5836",
+      "name": "Tiene foto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        800,
+        208
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Boolean($('Preparar mensaje inspector').item.json.tiene_foto) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "32255e93-6cf6-440b-8f1c-d4fb4890bca3",
+      "name": "Enviar foto",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        128
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "={{ $('Cargar contexto').first().json.inspector_chat_id }}",
+        "binaryData": false,
+        "file": "={{ $('Cargar contexto').first().json.foto_file_id }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "caption": "={{ '📎 Evidencia · Justificativo #' + $('Cargar contexto').first().json.id }}"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "ffe4dbf2-0ead-4b79-984c-3b2749aefa22",
+      "retryOnFail": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "uCJxcnNOFfvYnRgN",
+          "name": "Telegram Portika"
+        }
+      }
+    },
+    {
+      "id": "b2cebb5c-564c-46c4-9b49-f61a4a9dc8ff",
+      "name": "Pedir aprobación",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1248,
+        208
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendAndWait",
+        "chatId": "={{ $('Cargar contexto').first().json.inspector_chat_id }}",
+        "message": "={{ $('Preparar mensaje inspector').first().json.mensaje }}",
+        "responseType": "approval",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "✅ Aprobar",
+            "disapproveLabel": "❌ Rechazar"
+          }
+        },
+        "chatApproval": true,
+        "postDecisionBehavior": "showOutcome",
+        "options": {
+          "appendAttribution": false,
+          "limitWaitTime": {
+            "values": {
+              "limitType": "afterTimeInterval",
+              "resumeAmount": 24,
+              "resumeUnit": "hours"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "9da62761-081b-4907-b096-c6af4ff7a153",
+      "retryOnFail": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "uCJxcnNOFfvYnRgN",
+          "name": "Telegram Portika"
+        }
+      }
+    },
+    {
+      "id": "cd7a7c81-714f-4010-b747-1e3d81a204c3",
+      "name": "Decisión recibida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1472,
+        208
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ typeof $json.data?.approved === 'boolean' }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "493061f0-a7d0-4b13-a070-0c1995ce731a",
+      "name": "Aplicar decisión",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        1328,
+        128
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "with entrada as (\n    select\n        case\n            when $1::text ~ '^\\d+$' then $1::bigint\n            else null::bigint\n        end as id,\n        case\n            when $2::text in ('aprobado', 'rechazado') then $2::text\n            else null::text\n        end as decision,\n        coalesce(nullif(trim($3::text), ''), 'desconocido') as inspector_chat_id\n), objetivo as materialized (\n    select\n        j.id,\n        j.representante_codigo,\n        j.estudiante_codigo,\n        j.validacion,\n        j.extraccion,\n        j.estado as estado_previo,\n        en.decision,\n        en.inspector_chat_id\n    from entrada en\n    join public.justificativos j on j.id = en.id\n    where en.decision is not null\n      and j.estado in ('pendiente', 'revision_manual')\n    for update of j\n), actualizado as materialized (\n    update public.justificativos j\n    set estado = o.decision\n    from objetivo o\n    where j.id = o.id\n      and j.estado in ('pendiente', 'revision_manual')\n    returning\n        j.id,\n        j.representante_codigo,\n        j.estudiante_codigo,\n        j.validacion,\n        j.extraccion,\n        o.estado_previo,\n        j.estado as decision,\n        o.inspector_chat_id\n), fechas_objetivo as materialized (\n    select distinct v.fecha_valida as fecha\n    from actualizado a\n    cross join lateral jsonb_array_elements_text(\n        case\n            when a.estudiante_codigo is not null\n             and jsonb_typeof(a.validacion->'fechas') = 'array'\n             and jsonb_array_length(a.validacion->'fechas') > 0\n            then a.validacion->'fechas'\n            else '[]'::jsonb\n        end\n    ) as f(fecha_txt)\n    cross join lateral (\n        select case\n            when f.fecha_txt ~ '^\\d{4}-\\d{2}-\\d{2}$'\n             and to_char(to_date(f.fecha_txt, 'YYYY-MM-DD'), 'YYYY-MM-DD') = f.fecha_txt\n            then to_date(f.fecha_txt, 'YYYY-MM-DD')\n            else null::date\n        end as fecha_valida\n    ) as v\n    where v.fecha_valida is not null\n), faltas_actualizadas as materialized (\n    update public.faltas f\n    set estado = case\n        when a.decision = 'aprobado' then 'justificada'\n        else 'injustificada'\n    end\n    from actualizado a\n    where a.estudiante_codigo is not null\n      and exists (select 1 from fechas_objetivo)\n      and f.estudiante_codigo = a.estudiante_codigo\n      and f.fecha in (select fecha from fechas_objetivo)\n      and (\n          (a.decision = 'aprobado' and f.estado in ('injustificada', 'pendiente'))\n          or (a.decision = 'rechazado' and f.estado = 'pendiente')\n      )\n    returning f.id, f.fecha::text as fecha\n), evento as (\n    insert into public.eventos_tablero (tipo, curso, paralelo)\n    select 'justificada', e.curso, e.paralelo\n    from actualizado a\n    join public.estudiantes e on e.codigo = a.estudiante_codigo\n    where a.decision = 'aprobado'\n      and exists (select 1 from fechas_objetivo)\n      and exists (select 1 from faltas_actualizadas)\n), auditoria_insert as (\n    insert into public.auditoria (actor, accion, entidad, entidad_id, detalle)\n    select\n        'inspector:' || a.inspector_chat_id,\n        a.decision,\n        'justificativos',\n        a.id::text,\n        jsonb_build_object(\n            'estado_previo', a.estado_previo,\n            'decision', a.decision,\n            'estudiante_codigo', a.estudiante_codigo,\n            'faltas_actualizadas', (select count(*) from faltas_actualizadas),\n            'fechas', coalesce((select jsonb_agg(fecha::text order by fecha) from fechas_objetivo), '[]'::jsonb)\n        )\n    from actualizado a\n)\nselect\n    (a.id is not null) as aplicado,\n    a.decision,\n    r.telegram_chat_id::text as telegram_chat_id,\n    e.nombre_ficticio as estudiante_nombre,\n    coalesce((select jsonb_agg(fecha::text order by fecha) from fechas_objetivo), '[]'::jsonb) as fechas,\n    a.extraccion->>'motivo' as motivo,\n    case\n        when a.id is not null then (select count(*)::int from faltas_actualizadas)\n        else 0\n    end as faltas_actualizadas\nfrom (values (1)) as base(fila)\nleft join actualizado a on true\nleft join public.estudiantes e on e.codigo = a.estudiante_codigo\nleft join public.representantes r on r.codigo = a.representante_codigo;\n",
+        "options": {
+          "queryReplacement": "={{ [ String($('Cargar contexto').first().json.id ?? ''), $('Pedir aprobación').first().json.data.approved ? 'aprobado' : 'rechazado', String($('Cargar contexto').first().json.inspector_chat_id ?? '') ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "L7pCp0sFwXKrC2OB",
+          "name": "Postgres Portika"
+        }
+      }
+    },
+    {
+      "id": "0bfd1021-fa07-436e-8803-a505ac10ec03",
+      "name": "Avisar familia?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1552,
+        128
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Aplicar decisión').item.json.aplicado === true && Boolean($('Aplicar decisión').item.json.telegram_chat_id) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "19d64ce3-9f1d-4060-ad8f-a509d2ad00dc",
+      "name": "Preparar aviso familia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        128
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];\nconst meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',\n  'septiembre', 'octubre', 'noviembre', 'diciembre'];\n\nfunction fechaEnPalabras(fecha) {\n  const dia = new Date(String(fecha).slice(0, 10) + 'T00:00:00Z');\n  if (Number.isNaN(dia.getTime())) return String(fecha);\n  return `el ${dias[dia.getUTCDay()]} ${dia.getUTCDate()} de ${meses[dia.getUTCMonth()]}`;\n}\n\nfunction conFechas(fechas, redactar, maximo = 300) {\n  const enPalabras = fechas.map(fechaEnPalabras);\n  const lista = [enPalabras.slice(0, -1).join(', '), enPalabras.at(-1)].filter(Boolean).join(' y ');\n  const mensaje = redactar(lista);\n  if (mensaje.length <= maximo || fechas.length < 2) return mensaje;\n  return redactar(`${enPalabras[0]} y ${fechas.length - 1} más`);\n}\n\nconst { decision, telegram_chat_id, estudiante_nombre, fechas } = $json;\nconst chatId = telegram_chat_id ? String(telegram_chat_id).trim() : null;\n\nif (decision === 'aprobado') {\n  return {\n    json: {\n      telegram_chat_id: chatId,\n      decision,\n      mensaje: 'Tu justificativo fue aprobado',\n    },\n  };\n}\n\nconst nombre = typeof estudiante_nombre === 'string' && estudiante_nombre.trim()\n  ? estudiante_nombre.trim().split(/\\s+/)[0].slice(0, 40)\n  : '';\nconst fechasValidas = Array.isArray(fechas)\n  ? fechas.filter((f) => typeof f === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(f))\n  : [];\nconst ayuda = 'Si necesitas ayuda, inspección te atiende con gusto en el colegio.';\n\nlet mensaje;\nif (fechasValidas.length) {\n  const sujeto = nombre ? `el justificativo de ${nombre}` : 'tu justificativo';\n  mensaje = conFechas(fechasValidas, (lista) =>\n    `Hola 🙏 Inspección revisó ${sujeto} para ${lista}, pero no pudo aprobarlo esta vez. ${ayuda}`);\n} else if (nombre) {\n  mensaje = `Hola 🙏 Inspección revisó el justificativo de ${nombre}, pero no pudo aprobarlo esta vez. ${ayuda}`;\n} else {\n  mensaje = `Hola 🙏 Inspección revisó tu justificativo, pero no pudo aprobarlo esta vez. ${ayuda}`;\n}\n\nreturn {\n  json: {\n    telegram_chat_id: chatId,\n    decision,\n    mensaje: mensaje.slice(0, 300),\n  },\n};"
+      }
+    },
+    {
+      "id": "9bd7e8eb-1933-4e12-bbf1-3c768933c535",
+      "name": "Avisar familia",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        128
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Preparar aviso familia').item.json.telegram_chat_id }}",
+        "text": "={{ $('Preparar aviso familia').item.json.mensaje }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "ccb6379e-6c4b-445f-9e26-f0583cdc40ff",
+      "retryOnFail": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "uCJxcnNOFfvYnRgN",
+          "name": "Telegram Portika"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cuando lo llame WF3": {
+      "main": [
+        [
+          {
+            "node": "Cargar contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar contexto": {
+      "main": [
+        [
+          {
+            "node": "Listo para revisar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listo para revisar?": {
+      "main": [
+        [
+          {
+            "node": "Preparar mensaje inspector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar mensaje inspector": {
+      "main": [
+        [
+          {
+            "node": "Tiene foto?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene foto?": {
+      "main": [
+        [
+          {
+            "node": "Enviar foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pedir aprobación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar foto": {
+      "main": [
+        [
+          {
+            "node": "Pedir aprobación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedir aprobación": {
+      "main": [
+        [
+          {
+            "node": "Decisión recibida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decisión recibida?": {
+      "main": [
+        [
+          {
+            "node": "Aplicar decisión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar decisión": {
+      "main": [
+        [
+          {
+            "node": "Avisar familia?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisar familia?": {
+      "main": [
+        [
+          {
+            "node": "Preparar aviso familia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar aviso familia": {
+      "main": [
+        [
+          {
+            "node": "Avisar familia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "timezone": "America/Guayaquil",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "73eb3432-a25c-4f64-a0d1-0abcef3e68de",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [
+    {
+      "id": "00ef27c8-69c6-4abc-8e85-6290597d5f09",
+      "name": "Cargar y validar",
+      "nodeNames": [
+        "Cargar contexto",
+        "Listo para revisar?",
+        "Preparar mensaje inspector"
+      ],
+      "description": "Carga contexto del justificativo, valida estado e inspector y formatea resumen"
+    },
+    {
+      "id": "78b1b694-d732-473a-a8bf-042d6a6563dc",
+      "name": "Revisión del inspector",
+      "nodeNames": [
+        "Tiene foto?",
+        "Enviar foto",
+        "Pedir aprobación",
+        "Decisión recibida?"
+      ],
+      "description": "Envía foto si existe y solicita aprobación o rechazo en Telegram (24h)"
+    },
+    {
+      "id": "c13f5965-2cc2-46c5-b79e-ed4c3bc4dece",
+      "name": "Guardar y notificar",
+      "nodeNames": [
+        "Aplicar decisión",
+        "Avisar familia?",
+        "Preparar aviso familia",
+        "Avisar familia"
+      ],
+      "description": "Aplica decisión en CTE atómico idempotente y avisa a la familia por Telegram"
+    }
+  ],
+  "id": "16BixOJjcUjkEhXh",
+  "tags": []
+}
