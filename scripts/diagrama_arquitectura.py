@@ -131,9 +131,8 @@ def step(x, y, n, color=STEP, size=22):
 
 # ---------- lienzo ----------
 add(f'<rect width="{W}" height="{H}" fill="#FFFFFF"/>')
-text(40, 54, "Asistencia en la puerta", 30, 600, INK)
-text(40, 82, "Cómo viaja un ingreso desde la puerta del colegio hasta el tablero del inspector, y cómo se despliega cada pieza.",
-     15, 400, SUB)
+text(40, 54, "Pórtika", 30, 600, INK)
+text(40, 82, "La asistencia se registra en la puerta: así viaja un ingreso hasta el tablero y así se despliega cada pieza.", 15, 400, SUB)
 text(1760, 54, "Equipo FABATECH, track T3", 13, 600, INK, "end")
 text(1760, 74, "Hackathon EduTech Eight Academy by n8n, noviembre de 2026", 12, 400, SUB, "end")
 
@@ -153,7 +152,7 @@ tile(380, 280, VER, "qr", ["Tótem de", "autoservicio"])
 tile(560, 280, VER, "chart", ["Tablero en vivo"], "inspector y tutor")
 
 zone(660, 200, 380, 150, "Telegram", TG, "telegram")
-tile(710, 280, TG, "telegram", ["Bot API"])
+tile(710, 280, TG, "telegram", ["Bot Pórtika"])
 tile(830, 280, TG, "chat", ["Chat de la", "familia"])
 tile(1000, 280, TG, "chat", ["Chat del", "inspector"])
 
@@ -295,7 +294,7 @@ defs = (f'<defs><filter id="tile" x="-20%" y="-20%" width="140%" height="150%"><
         f'flood-color="#1B2333" flood-opacity="0.18"/></filter>{mk}</defs>')
 font = ("<style>@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;display=block');</style>")
 svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
-       f'aria-label="Arquitectura de Asistencia en la puerta">{font}{defs}{"".join(out)}</svg>')
+       f'aria-label="Arquitectura de Pórtika">{font}{defs}{"".join(out)}</svg>')
 open(OUT_SVG, "w", encoding="utf-8", newline="\n").write(svg)
 open(OUT_HTML, "w", encoding="utf-8", newline="\n").write(
     f'<!doctype html><html><head><meta charset="utf-8"><style>html,body{{margin:0;background:#fff}}</style></head><body>{svg}</body></html>')
