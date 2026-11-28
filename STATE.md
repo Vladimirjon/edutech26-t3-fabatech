@@ -1,6 +1,6 @@
 # STATE.md · Dónde está el trabajo
 
-_Última actualización: sáb 28-nov-2026 09:40 (UTC-5)._
+_Última actualización: sáb 28-nov-2026 10:00 (UTC-5)._
 
 ## Hecho
 
@@ -103,6 +103,23 @@ Pendiente:
 - n8n Cloud llega a Supabase por el Session pooler (la conexión directa es solo IPv6) y pide el certificado CA de Supabase con SSL `Require`.
 - GitHub nunca muestra el valor de un secreto: no sirve para compartir claves.
 - Vincular facturación en AI Studio pasa la cuenta a pago, y el crédito de prueba de Google Cloud no cubre la API de Gemini.
+
+## Al 28-nov 10:00 · Ahorro y declaraciones (#13, rama `docs/13-ahorro-declaraciones`)
+
+Hecho:
+- `docs/ahorro.md`: fórmula en dos bloques. A · asistencia, por lista de un curso en un día. B · seguimiento, por falta gestionada. El período es una semana y se mide el tiempo del colegio. Las citas salen solo del README. Todos los minutos son [Hipótesis] y la proyección con las 706 faltas es [Simulación] (70,6 h en sep-dic, no semanal). Medición pendiente: cronometrar en un colegio piloto.
+- `AI_USAGE.md`: filas del 28-nov (WF1, WF3, #13) y la sección «IA dentro del producto».
+- `PRIOR_WORK.md`: notas de `../prep/` separadas en «antes de las 17:00» y «dentro de la ventana, fuera del repo», y tabla de terceros.
+- Verificado: el ejemplo da 0,5 h, cada cita aparece en el README o en los contratos y `node --test` pasa 44/44.
+
+Pendiente:
+- Declaraciones de Brandon y Jorge cargadas en `AI_USAGE.md` según lo que Johann confirmó el 28-nov. PR #28 con «Closes #13»: listo para fusionar.
+- Latencia del tótem (< 2 s) y del bot sin medir. Al medirlas se rotulan «medido en el prototipo, no en un colegio».
+
+Aprendido:
+- Las notas `01` y `03` de `prep/` eran para la idea de cobranza, que se descartó. De ahí solo quedaron el stack y el principio «la IA interpreta, las reglas deciden».
+- No hubo entrevistas. La evidencia es el estudio del Ministerio (README) y el dataset ficticio.
+- Un encargo sin `-Worktree` no se puede reanudar. Para iterar con el mismo agente, el primer encargo se lanza con `-Worktree`.
 
 ## Al 28-nov 10:10 · Revisión del PR #27 (WF2 · Ausencias, rama `feat/08-wf2-ausencias`)
 
