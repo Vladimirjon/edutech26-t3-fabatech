@@ -55,7 +55,7 @@ Además, `scripts/seed.py` genera `data/carnes_demo.pdf` con los QR de 10 estudi
 
 Cabecera `X-Portika-Clave: <PORTIKA_CLAVE_DISPOSITIVO>`. Es un secreto compartido de los dispositivos de la puerta; si no coincide, la respuesta es 401.
 
-**CORS:** el navegador envía una cabecera propia, así que hace un `OPTIONS` previo. El webhook debe permitir el origen del dominio de Vercel y la cabecera `X-Portika-Clave` (opción de orígenes permitidos del nodo Webhook; **verificar en la instancia**).
+**CORS:** el navegador envía una cabecera propia, así que hace un `OPTIONS` previo. El webhook debe permitir el origen `https://portika.vercel.app` (más la URL de una preview concreta si se prueba desde un PR) y la cabecera `X-Portika-Clave` (opción de orígenes permitidos del nodo Webhook; **verificar en la instancia**).
 
 ```json
 { "carne_token": "k3P9xQ2mVt7LwZ4a", "origen": "totem", "dispositivo": "puerta-principal", "escaneado_en": "2026-01-12T07:14:03-05:00" }
@@ -171,13 +171,15 @@ Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat d
 
 | Dónde | Nombre | Para qué |
 | --- | --- | --- |
-| Front (`.env`, público) | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_N8N_BASE_URL` | Tablero y tótem |
+| Front (`.env` en local; variables del proyecto `portika` en Vercel) | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (la *publishable key* de Supabase, que sustituye a la anon), `VITE_N8N_BASE_URL` | Tablero y tótem |
 | Dispositivo de la puerta | `PORTIKA_CLAVE_DISPOSITIVO` | Cabecera de C2 y C3; se ingresa una vez en la tablet y no va al repo |
 | Credenciales de n8n | `Telegram Portika`, `Telegram Portika dev`, `Gemini Portika` y `Postgres Portika` (contraseña de la base de datos, Session pooler, SSL `Require` con el certificado CA de Supabase) | Nunca en el repo ni en los JSON exportados |
 | Tabla `configuracion` (Supabase) | `fecha_demo`, `plazo_dias`, `portika_clave_dispositivo`, `portika_clave_inspector`; `inspector_chat_id` la escribe n8n (C4) | Configuración de los workflows; se lee con un nodo Postgres. Se carga a mano, nunca en `seed.sql`. Las claves se comparan en SQL (`where clave = ... and valor = $1`) y nunca se devuelven, para que no queden en las ejecuciones de n8n |
-| GitHub Secrets | `N8N_API_KEY`, `N8N_BASE_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID`, `VERCEL_TOKEN`, `PORTIKA_CLAVE_DISPOSITIVO` | Despliegue (D1–D4) y prueba de humo |
+| GitHub Secrets | `N8N_API_KEY`, `N8N_BASE_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID`, `PORTIKA_CLAVE_DISPOSITIVO` | Despliegue (D1–D3) y prueba de humo |
 
 Las Variables de n8n (`$vars`) no están en el plan Starter: la instancia muestra «Available on Pro plan». Por eso la configuración vive en `configuracion`, que `anon` no puede leer.
+
+D4 no usa token: el proyecto `portika` de Vercel (plan Hobby) está conectado al repo y despliega solo, con una preview por PR y producción al fusionar. Si se quiere publicar producción solo cuando pase el humo (#5), se usan los *Deployment Checks* de Vercel (verificar en Hobby).
 
 ## C10 · Estructura del repo
 

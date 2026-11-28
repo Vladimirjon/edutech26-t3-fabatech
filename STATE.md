@@ -53,7 +53,7 @@ _Última actualización: sáb 28-nov-2026 04:30 (UTC-5)._
 - #4 cerrado por Brandon con evidencia (comentario de cierre del #4): publicación por API (PUT y publish con 200) y webhook temporal con `{"ok":true}`. `tmp-smoke-test` quedó despublicado pero no borrado: hay que borrarlo.
 - Credenciales en el proyecto Portika de n8n: `Postgres Portika` (Session pooler, SSL con el certificado CA de Supabase; Johann vio «Connection tested successfully»), `Gemini Portika` (AI Studio, nivel gratis, sin facturación), `Telegram Portika` y `Telegram Portika dev`.
 - Las Variables de n8n son solo del plan Pro: la configuración pasa a la tabla `configuracion` (C9). Johann cargó `fecha_demo`, `plazo_dias` y las dos claves (generadas en la base); `inspector_chat_id` la escribe n8n.
-- `PORTIKA_CLAVE_DISPOSITIVO` ya está en GitHub Secrets. Falta `VERCEL_TOKEN` (#19).
+- `PORTIKA_CLAVE_DISPOSITIVO` ya está en GitHub Secrets. `VERCEL_TOKEN` ya no hace falta: Johann conectó el proyecto `portika` de Vercel (Hobby) al repo, con las 3 variables `VITE_*` cargadas y dominio `https://portika.vercel.app`. Su primer build falla porque aún no hay front; cuando exista `src/web`, se cambia la carpeta raíz ahí.
 - PR #20 (Jorge): CI en verde, en borrador. Faltan CD y prueba de humo, que esperan a los workflows. #6 y #11 sin ramas.
 - Ningún workflow del demo subido todavía (#7 a #10 y #12).
 
