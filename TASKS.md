@@ -21,8 +21,8 @@ Las tareas viven en los issues de GitHub (ver `docs/plan.md`). Estado de las de 
 
 | Issue | Tarea | Estado |
 | --- | --- | --- |
-| #3 | Esquema Supabase, migraciones y seed sintético | en curso: aplicado y verificado en Supabase, falta el PR |
-| #9 | WF3 · prompts y reglas deterministas | pendiente |
+| #3 | Esquema Supabase, migraciones y seed sintético | hecho (PR #21) |
+| #9 | WF3 · reglas, prompts y flujo en n8n | en curso: WF3 publicado; se cierra al integrar WF4 (#10) |
 
 ## Entrega · sáb 14:00
 

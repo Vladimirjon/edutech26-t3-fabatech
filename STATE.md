@@ -1,6 +1,6 @@
 # STATE.md · Dónde está el trabajo
 
-_Última actualización: sáb 28-nov-2026 06:45 (UTC-5)._
+_Última actualización: sáb 28-nov-2026 09:40 (UTC-5)._
 
 ## Hecho
 
@@ -67,10 +67,35 @@ Reparto hasta el ensayo de las 10:00:
 
 Pendiente o sin verificar:
 - CORS de WF1 desde `portika.vercel.app` y la meta de menos de 2 s (se prueba con #6).
-- WF3 dentro de n8n; WF2, WF4 y WF0 sin empezar; front sin empezar.
+- WF2, WF4 y WF0 sin terminar; front sin empezar.
 - Probar un mensaje de cada bot y pasar los workflows a Pórtika antes de #16 (#19).
 - `AI_USAGE.md` sin lo del 28-nov (#13).
 - R3 no descuenta feriados (atajo anotado en el código; suficiente para el demo del 12-ene).
+
+## Al 28-nov 09:40 · WF3 publicado (#9, rama `feat/09-wf3-flujo`)
+
+Hecho:
+- WF3 · Justificativo publicado (id `GhRiOqysx7IGKjK4`). Telegram Trigger → vínculo de representante e inspector (C4) → contexto en una consulta → texto, voz (transcripción con Gemini) o foto → extracción con Gemini 3.5 Flash Lite y Parser C5 → «Reglas C6» → guardado con una sola sentencia CTE → «Redactar respuesta» → respuesta a la familia. «Enviar a WF4» queda desactivado.
+- Probado: `node --test` 39/39; las 4 consultas en Postgres 15.8 con migraciones y seed (vínculos, clave del inspector, contexto, guardado con aprobación, rechazo y revisión manual, evento `pendiente`); y en producción desde un teléfono con REP-999 (vínculo de ambos roles, texto, voz, foto y rechazo). Datos de prueba borrados después; el chat de Johann queda como `inspector_chat_id`.
+- Mensajes cálidos y personalizados sin IA (`n8n/codigo/wf3-respuesta.js`): nombre del hijo, fecha en palabras, motivo y saludo variable. Textos fijos en C4.
+- Cuando C6 da `destino = aprobacion` (WF3 no aprueba: eso lo hace WF4), WF3 pasa las faltas a `pendiente` e inserta un evento `pendiente` (curso y paralelo) para refrescar el tablero (C6).
+- Clave del inspector rotada en la base (quedó visible en una captura del chat).
+
+Decisiones:
+- Un chat = un representante: el último `/start REP-###` gana.
+- **Credenciales de Telegram:** el id `uCJxcnNOFfvYnRgN` tiene el token del bot del demo (@portika_edutech_bot) y Johann la renombró a «Telegram Portika». WF3 ya usa el bot del demo; Pórtika dev queda sin uso y nadie sabe qué token tiene `duIeqLZEdhdKH4TJ` («Telegram Portika dev»). Las descripciones de ambas siguen cruzadas. **WF2 y WF4 deben usar «Telegram Portika»** para que la familia responda en el mismo chat.
+- Ajustes del export: n8n omite los valores por defecto y, sin workflow destino, descarta el mapeo de «Enviar a WF4». Al integrar WF4: activar el nodo, elegir WF4 y mapear `id = {{ $json.id }}`.
+
+Pendiente:
+- Integrar WF4 (#10) y cerrar #9.
+- Durante el demo nadie pulsa «Execute workflow» en WF3: el modo prueba saca el webhook del bot y hay que volver a publicar.
+- Sin probar: la compatibilidad de Gemini con el Parser C5 en todos los casos (si falla, va a `revision_manual`) y un chat no vinculado desde otro teléfono (probado solo en SQL).
+
+### Aprendido (28-nov, WF3)
+
+- Al importar un archivo en un workflow existente, n8n no trae los `settings`: hay que fijar a mano «no guardar ejecuciones exitosas».
+- `setNodeParameter` del MCP de n8n con `/notes` escribe un parámetro, no la nota del nodo.
+- El MCP de n8n no carga en `codex exec`: las consultas a la instancia las hace Claude.
 
 ### Aprendido (28-nov)
 

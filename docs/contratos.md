@@ -94,12 +94,13 @@ Efectos de un `registrado`:
 
 ## C4 · Bot de Telegram «Pórtika»
 
-- Dos bots: **Pórtika** para el demo y **Pórtika dev** para desarrollo. Telegram admite un solo webhook por bot, y la URL de prueba pisa la de producción.
+- Un bot: **Pórtika** (credencial `Telegram Portika` en n8n), para el demo y las pruebas. **Pórtika dev** quedó sin uso el 28-nov (ver #19). Telegram admite un solo webhook por bot y la URL de prueba pisa la de producción: después de probar con «Execute workflow» hay que volver a publicar, y durante el demo nadie prueba en modo test.
 - **Un único Telegram Trigger por bot**, ubicado en WF3, que enruta por tipo de mensaje:
-  - `/start REP-014` (enlace `t.me/<bot>?start=REP-014`): guarda el `chat_id` en `representantes` y responde «Listo, recibirás aquí los avisos de asistencia».
-  - `/start INSPECTOR-<PORTIKA_CLAVE_INSPECTOR>`: si la clave coincide, guarda el chat del inspector. La guarda en la fila `inspector_chat_id` de `configuracion`. Si el vínculo falla, esa fila se carga a mano.
+  - `/start REP-014` (enlace `t.me/<bot>?start=REP-014`): guarda el `chat_id` en `representantes` y responde «¡Hola! 👋 Ya estás conectado con Pórtika. Si tu hijo o hija falta, te avisaremos aquí y podrás contarnos el motivo con un texto, una nota de voz o una foto.»
+  - `/start INSPECTOR-<PORTIKA_CLAVE_INSPECTOR>`: si la clave coincide, guarda el chat del inspector en la fila `inspector_chat_id` de `configuracion` y responde «Listo ✅ Este chat recibirá los justificativos para revisar.» Si el vínculo falla, esa fila se carga a mano.
   - Texto, nota de voz o foto de un representante vinculado: va al flujo del justificativo (C5 y C6).
-  - Mensaje de un chat no vinculado: «No encuentro tu registro; usa el enlace que te envió el colegio».
+  - Si el chat no está vinculado o el comando de vínculo falla: «Hola 👋 Todavía no encuentro tu registro. Usa el enlace que te envió el colegio para conectarte.»
+  - Otros comandos o formatos no admitidos: «Por ahora puedo recibir textos, notas de voz o fotos 🙂 ¿Nos cuentas por ahí?»
 - La aprobación de WF4 usa **Send and Wait for Response**. Según la documentación de n8n, la aprobación dentro del chat comparte el webhook del Telegram Trigger en versiones compatibles. **Hay que comprobarlo en la instancia.** Plan B: aprobación por enlace (opción del mismo nodo).
 
 ## C5 · Extracción con Gemini (WF3)
@@ -144,7 +145,7 @@ Entrada: la salida de C5, el `chat_id`, `FECHA_DEMO` y `plazo_dias` (entero; 3 s
 | R3 | Ninguna fecha es futura y todas están dentro de `plazo_dias` días hábiles (fila de `configuracion`; por defecto 3) | `rechazado`, con aviso a la familia |
 | R4 | `confianza` ≥ 0,6 | `revision_manual` |
 
-Si todas pasan, `destino = "aprobacion"` y las faltas cubiertas pasan a `pendiente`. Las reglas se prueban con `node:test` sobre el `jsCode` extraído del JSON del workflow (ver #5).
+Si todas pasan, `destino = "aprobacion"` y las faltas cubiertas pasan a `pendiente`. Si se actualiza alguna falta, la misma sentencia inserta un solo evento `pendiente` con el curso y el paralelo para refrescar el tablero por Realtime. Las reglas se prueban con `node:test` sobre el `jsCode` extraído del JSON del workflow (ver #5).
 
 ## C7 · Aprobación (WF4)
 
