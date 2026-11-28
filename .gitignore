@@ -3,6 +3,8 @@
 !.env.example
 node_modules/
 .n8n/
+supabase/.temp/
+supabase/.branches/
 *.log
 .DS_Store
 Thumbs.db
