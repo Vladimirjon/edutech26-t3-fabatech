@@ -67,6 +67,11 @@ test('WF3 mantiene las consultas parametrizadas en archivos SQL', () => {
     const { query } = nodo('Vincular inspector').parameters;
     assert.match(query, /clave = 'portika_clave_inspector' and valor = \$1 and \$1 <> ''/);
     assert.match(query, /returning 1\s*\)\s*select exists \(select 1 from vinculo\) as vinculado;/i);
+    const inspector = nodo('Vincular inspector').parameters.options.queryReplacement;
+    const triggerInspector = () => ({
+        first: () => ({ json: { message: { text: '/start INSPECTOR- prueba  ', chat: { id: 42 } } } }),
+    });
+    assert.deepEqual(evaluar(inspector, {}, triggerInspector), ['prueba', '42']);
 
     const vincular = nodo('Vincular representante').parameters.options.queryReplacement;
     for (const [text, codigo] of [['/start', ''], ['/start REP-14', 'REP-14'], ['/start REP-014', 'REP-014']]) {

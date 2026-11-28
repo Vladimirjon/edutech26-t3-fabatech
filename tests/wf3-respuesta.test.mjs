@@ -7,11 +7,11 @@ const codigo = leer('../n8n/codigo/wf3-respuesta.js');
 const redactar = new Function('$json', '$', codigo);
 const validar = new Function('$json', leer('../n8n/codigo/c6-reglas.js'));
 
-function correr({ id = '3', fechas = ['2026-01-12'], motivo = 'salud', plazo_dias, estudiante = true } = {}) {
+function correr({ id = '3', fechas = ['2026-01-12'], motivo = 'salud', plazo_dias, estudiante = true, confianza = 0.9 } = {}) {
     const entrada = validar({
         hijos: estudiante ? [{ codigo: 'EST-014', nombre_ficticio: 'Ana Lucía' }] : [],
         faltas: fechas.map((fecha) => ({ estudiante_codigo: 'EST-014', estado: 'injustificada', fecha })),
-        extraccion: { estudiante_codigo: estudiante ? 'EST-014' : null, motivo, fechas, resumen: 'Aviso', confianza: 0.9 },
+        extraccion: { estudiante_codigo: estudiante ? 'EST-014' : null, motivo, fechas, resumen: 'Aviso', confianza },
         fecha_demo: '2026-01-12',
         plazo_dias,
     }).json;
@@ -44,20 +44,57 @@ test('revisión manual sin estudiante evita un nombre inventado y conserva el ci
     assert.match(respuesta, /Lamentamos mucho lo que están pasando/);
 });
 
+test('revisión manual con R4 fallida omite la despedida de salud', () => {
+    const { destino, respuesta } = correr({ confianza: 0.5 });
+    assert.equal(destino, 'revision_manual');
+    assert.match(respuesta, /te responderá aquí\.$/);
+    assert.doesNotMatch(respuesta, /Que se mejore/);
+});
+
+test('revisión manual con C5 fallida omite la despedida aunque figure el motivo de salud', () => {
+    const { destino, respuesta } = correr({ fechas: [] });
+    assert.equal(destino, 'revision_manual');
+    assert.match(respuesta, /te responderá aquí\.$/);
+    assert.doesNotMatch(respuesta, /Que se mejore/);
+});
+
 test('rechazo por plazo explica la fecha tardía con el plazo configurado o el de 3 días', () => {
     for (const [plazo_dias, plazo] of [[undefined, 3], ['2', 2]]) {
         const { destino, respuesta } = correr({ fechas: ['2026-01-05', '2026-01-12'], plazo_dias });
         assert.equal(destino, 'rechazado');
         assert.ok(respuesta.includes(`el lunes 5 de enero ya pasó el plazo de ${plazo} días hábiles`));
-        assert.doesNotMatch(respuesta, /12 de enero/);
+        assert.match(respuesta, /Si quieres justificar el lunes 12 de enero, escríbenos solo esa fecha\./);
     }
 });
 
 test('rechazo por fecha futura respeta la prioridad de R3 si también hay fechas tardías', () => {
     const { destino, respuesta } = correr({ fechas: ['2026-01-05', '2026-01-13'] });
     assert.equal(destino, 'rechazado');
-    assert.match(respuesta, /Todavía no ha llegado el martes 13 de enero; puedes escribirnos ese día/);
+    assert.match(respuesta, /todavía no ha llegado el martes 13 de enero/);
     assert.doesNotMatch(respuesta, /5 de enero/);
+});
+
+test('rechazar hoy y mañana aclara que el justificativo no se registró y pide reenviar solo hoy', () => {
+    const { destino, respuesta } = correr({ fechas: ['2026-01-12', '2026-01-13'] });
+    assert.equal(destino, 'rechazado');
+    assert.match(respuesta, /No pudimos registrar este justificativo: todavía no ha llegado el martes 13 de enero/);
+    assert.match(respuesta, /Si quieres justificar el lunes 12 de enero, escríbenos solo esa fecha\./);
+});
+
+test('rechazar una sola fecha explica el motivo sin sugerir el reenvío de otras fechas', () => {
+    const { destino, respuesta } = correr({ fechas: ['2026-01-13'] });
+    assert.equal(destino, 'rechazado');
+    assert.match(respuesta, /No pudimos registrar este justificativo: todavía no ha llegado el martes 13 de enero/);
+    assert.doesNotMatch(respuesta, /Si quieres justificar|escríbenos solo/);
+});
+
+test('el rechazo distingue el reenvío plural y abrevia las listas largas', () => {
+    const dos = correr({ fechas: ['2026-01-09', '2026-01-12', '2026-01-13'] });
+    assert.match(dos.respuesta, /el viernes 9 de enero y el lunes 12 de enero, escríbenos solo esas fechas/);
+    const fechas = Array.from({ length: 31 }, (_, i) => `2026-01-${String(i + 1).padStart(2, '0')}`);
+    const muchas = correr({ id: '5', fechas, plazo_dias: 20 });
+    assert.ok(muchas.respuesta.length <= 300);
+    assert.match(muchas.respuesta, /escríbenos solo esas fechas/);
 });
 
 test('enumera dos fechas con y, y abrevia una lista larga para no superar 300 caracteres', () => {

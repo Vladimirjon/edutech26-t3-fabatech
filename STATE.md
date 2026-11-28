@@ -78,7 +78,7 @@ Hecho:
 - WF3 · Justificativo publicado (id `GhRiOqysx7IGKjK4`). Telegram Trigger → vínculo de representante e inspector (C4) → contexto en una consulta → texto, voz (transcripción con Gemini) o foto → extracción con Gemini 3.5 Flash Lite y Parser C5 → «Reglas C6» → guardado con una sola sentencia CTE → «Redactar respuesta» → respuesta a la familia. «Enviar a WF4» queda desactivado.
 - Probado: `node --test` 39/39; las 4 consultas en Postgres 15.8 con migraciones y seed (vínculos, clave del inspector, contexto, guardado con aprobación, rechazo y revisión manual, evento `pendiente`); y en producción desde un teléfono con REP-999 (vínculo de ambos roles, texto, voz, foto y rechazo). Datos de prueba borrados después; el chat de Johann queda como `inspector_chat_id`.
 - Mensajes cálidos y personalizados sin IA (`n8n/codigo/wf3-respuesta.js`): nombre del hijo, fecha en palabras, motivo y saludo variable. Textos fijos en C4.
-- Al aprobar, WF3 inserta un evento `pendiente` (curso y paralelo) para refrescar el tablero (C6).
+- Cuando C6 da `destino = aprobacion` (WF3 no aprueba: eso lo hace WF4), WF3 pasa las faltas a `pendiente` e inserta un evento `pendiente` (curso y paralelo) para refrescar el tablero (C6).
 - Clave del inspector rotada en la base (quedó visible en una captura del chat).
 
 Decisiones:
