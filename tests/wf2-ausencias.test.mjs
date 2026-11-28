@@ -25,6 +25,7 @@ test('WF2 exporta metadata, settings y disparadores conforme a C0 y C3', () => {
 
   assert.equal(nodosDeTipo('scheduleTrigger').length, 1);
   const [schedule] = nodosDeTipo('scheduleTrigger');
+  assert.equal(schedule.disabled, true, 'Schedule apagado durante el evento: el demo usa el webhook (C3).');
   assert.deepEqual(schedule.parameters.rule.interval, [
     { field: 'cronExpression', expression: '30 7 * * 1-5' },
   ]);

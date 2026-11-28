@@ -40,7 +40,8 @@
             }
           ]
         }
-      }
+      },
+      "disabled": true
     },
     {
       "id": "9ffeb03e-a4db-41c7-ba83-cad3f4e1d1a8",
@@ -365,7 +366,7 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "none"
   },
-  "versionId": "a4c05a65-74b9-4e68-9bc4-998811ae2f59",
+  "versionId": "7c19e1fd-7fd0-425f-95dc-3d307127450d",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp"
