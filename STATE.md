@@ -50,8 +50,8 @@ _Última actualización: sáb 28-nov-2026 04:30 (UTC-5)._
 
 ## Al 28-nov 04:30 · instancia y credenciales
 
-- #4 cerrado por Brandon con evidencia: publicación por API (PUT y publish con 200) y webhook temporal con `{"ok":true}`. `tmp-smoke-test` quedó despublicado pero no borrado: hay que borrarlo.
-- Credenciales en el proyecto Portika de n8n: `Postgres Portika` (Session pooler, SSL con el certificado CA de Supabase, conexión probada), `Gemini Portika` (AI Studio, nivel gratis, sin facturación), `Telegram Portika` y `Telegram Portika dev`.
+- #4 cerrado por Brandon con evidencia (comentario de cierre del #4): publicación por API (PUT y publish con 200) y webhook temporal con `{"ok":true}`. `tmp-smoke-test` quedó despublicado pero no borrado: hay que borrarlo.
+- Credenciales en el proyecto Portika de n8n: `Postgres Portika` (Session pooler, SSL con el certificado CA de Supabase; Johann vio «Connection tested successfully»), `Gemini Portika` (AI Studio, nivel gratis, sin facturación), `Telegram Portika` y `Telegram Portika dev`.
 - Las Variables de n8n son solo del plan Pro: la configuración pasa a la tabla `configuracion` (C9). Faltan sus filas (#19).
 - Faltan en GitHub Secrets `VERCEL_TOKEN` y `PORTIKA_CLAVE_DISPOSITIVO` (#19).
 - PR #20 (Jorge): CI en verde, en borrador. Faltan CD y prueba de humo, que esperan a los workflows. #6 y #11 sin ramas.

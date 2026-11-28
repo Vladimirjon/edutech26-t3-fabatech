@@ -8,7 +8,7 @@ Nombre del producto: **Pórtika** (la app web y el bot de Telegram).
 
 - Zona horaria: `America/Guayaquil`. Fechas `AAAA-MM-DD`; marcas de tiempo ISO 8601 con zona (`2026-01-12T07:14:03-05:00`).
 - Códigos del dataset: estudiante `EST-###`, representante `REP-###`, curso `"8vo EGB"`, paralelo `"A"`.
-- Fecha del demo (`FECHA_DEMO`): `2026-01-12` (lunes). Los workflows la leen de la fila `fecha_demo` de `configuracion` (C9). Es un día **sin datos**: el historial del dataset llega hasta el 19-dic-2025. Así el demo arranca limpio y todo lo de ese día lo crean el tótem y WF2.
+- Fecha del demo (`FECHA_DEMO`): `2026-01-12` (lunes). Los workflows la leen de la fila `fecha_demo` de `configuracion` (C9). Si cambia, se cambian juntas esa fila y la fecha fija de `v_tablero_hoy` (migración). Es un día **sin datos**: el historial del dataset llega hasta el 19-dic-2025. Así el demo arranca limpio y todo lo de ese día lo crean el tótem y WF2.
 - Las pruebas automáticas fijan su propia fecha y no dependen de `FECHA_DEMO`.
 - Todo es sintético. Los únicos `chat_id` reales son los de los teléfonos del equipo y del jurado en el demo, y se borran después.
 
@@ -42,7 +42,7 @@ Además, `scripts/seed.py` genera `data/carnes_demo.pdf` con los QR de 10 estudi
 **Seguridad:**
 - RLS activado en todas las tablas.
 - El rol `anon` (navegador) solo puede leer `v_tablero_hoy` y `eventos_tablero`.
-- n8n se conecta como `postgres` con la contraseña de la base de datos, por el Session pooler y con SSL. Esa contraseña nunca sale de la credencial de n8n.
+- n8n se conecta como `postgres` con la contraseña de la base de datos, por el Session pooler y con SSL. Esa contraseña solo vive en la credencial de n8n y en el secreto `SUPABASE_DB_PASSWORD` del despliegue (C9).
 - El tablero se suscribe a `eventos_tablero` y, ante cada evento, vuelve a leer `v_tablero_hoy`. Así ningún dato personal viaja al navegador.
 
 **Realtime:** publicar solo `eventos_tablero` en `supabase_realtime`.
@@ -104,7 +104,7 @@ Efectos de un `registrado`:
 
 ## C5 · Extracción con Gemini (WF3)
 
-Modelo: **Gemini 3.5 Flash Lite** en el nivel gratis de AI Studio (500 llamadas al día; Gemini 3.8 Flash solo da 20), con la credencial `Gemini Portika`. Probarlo con una foto y una nota de voz antes de fijarlo.
+Modelo: **Gemini 3.5 Flash Lite** en el nivel gratis de AI Studio (500 llamadas al día; Gemini 3.8 Flash solo da 20, según el cupo que el equipo vio en AI Studio el 28-nov), con la credencial `Gemini Portika`. Probarlo con una foto y una nota de voz antes de fijarlo.
 
 Entrada: el texto, la transcripción de la voz o la imagen, junto con el contexto que se le pasa al modelo:
 - los hijos del representante (código y curso);
@@ -131,7 +131,7 @@ Si Gemini falla, se agota el tiempo o devuelve algo que no cumple el esquema, el
 
 ## C6 · Reglas deterministas (nodo Code en WF3)
 
-Entrada: la salida de C5, el `chat_id` y `FECHA_DEMO`. Salida guardada en `justificativos.validacion`:
+Entrada: la salida de C5, el `chat_id`, `FECHA_DEMO` y `plazo_dias` (entero; 3 si falta la fila). Salida guardada en `justificativos.validacion`:
 
 ```json
 { "valido": true, "destino": "aprobacion", "reglas": [{ "id": "R1", "ok": true, "detalle": "…" }] }
@@ -165,7 +165,7 @@ Después de publicar, el CD hace un POST al webhook C2 con el carné `HUMO-00000
 
 ## C8 · Errores (WF0)
 
-Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat del equipo (fila `equipo_chat_id` de `configuracion`) el nombre del workflow, el nodo que falló y el enlace a la ejecución.
+Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat del equipo (`equipo_chat_id`, escrito fijo en WF0 para que la alerta no dependa de Supabase) el nombre del workflow, el nodo que falló y el enlace a la ejecución.
 
 ## C9 · Configuración y secretos
 
@@ -174,7 +174,7 @@ Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat d
 | Front (`.env`, público) | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_N8N_BASE_URL` | Tablero y tótem |
 | Dispositivo de la puerta | `PORTIKA_CLAVE_DISPOSITIVO` | Cabecera de C2 y C3; se ingresa una vez en la tablet y no va al repo |
 | Credenciales de n8n | `Telegram Portika`, `Telegram Portika dev`, `Gemini Portika` y `Postgres Portika` (contraseña de la base de datos, Session pooler, SSL `Require` con el certificado CA de Supabase) | Nunca en el repo ni en los JSON exportados |
-| Tabla `configuracion` (Supabase) | `fecha_demo`, `plazo_dias`, `equipo_chat_id`, `portika_clave_dispositivo`, `portika_clave_inspector`; `inspector_chat_id` la escribe n8n (C4) | Configuración de los workflows; se lee con un nodo Postgres. Se carga a mano, nunca en `seed.sql` |
+| Tabla `configuracion` (Supabase) | `fecha_demo`, `plazo_dias`, `equipo_chat_id`, `portika_clave_dispositivo`, `portika_clave_inspector`; `inspector_chat_id` la escribe n8n (C4) | Configuración de los workflows; se lee con un nodo Postgres. Se carga a mano, nunca en `seed.sql`. Las claves se comparan en SQL (`where clave = ... and valor = $1`) y nunca se devuelven, para que no queden en las ejecuciones de n8n |
 | GitHub Secrets | `N8N_API_KEY`, `N8N_BASE_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID`, `VERCEL_TOKEN`, `PORTIKA_CLAVE_DISPOSITIVO` | Despliegue (D1–D4) y prueba de humo |
 
 Las Variables de n8n (`$vars`) no están en el plan Starter: la instancia muestra «Available on Pro plan». Por eso la configuración vive en `configuracion`, que `anon` no puede leer.
