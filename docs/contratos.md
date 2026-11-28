@@ -8,12 +8,22 @@ Nombre del producto: **Pórtika** (la app web y el bot de Telegram).
 
 - Zona horaria: `America/Guayaquil`. Fechas `AAAA-MM-DD`; marcas de tiempo ISO 8601 con zona (`2026-01-12T07:14:03-05:00`).
 - Códigos del dataset: estudiante `EST-###`, representante `REP-###`, curso `"8vo EGB"`, paralelo `"A"`.
-- Fecha del demo: variable `FECHA_DEMO`. Por ejemplo `2026-01-12`, dentro del rango del dataset ficticio y en día hábil.
+- Fecha del demo: variable `FECHA_DEMO = 2026-01-12` (lunes). Es un día **sin datos**: el historial del dataset llega hasta el 19-dic-2025. Así el demo arranca limpio y todo lo de ese día lo crean el tótem y WF2.
+- Las pruebas automáticas fijan su propia fecha y no dependen de `FECHA_DEMO`.
 - Todo es sintético. Los únicos `chat_id` reales son los de los teléfonos del equipo y del jurado en el demo, y se borran después.
 
 ## C1 · Base de datos (Supabase Postgres)
 
-Migraciones en `supabase/migrations/`. El seed se genera con `scripts/seed.py` desde el dataset ficticio y se guarda en `supabase/seed.sql`.
+Migraciones en `supabase/migrations/`. El seed se genera con `scripts/seed.py` desde el dataset ficticio y se guarda en `supabase/seed.sql`. Esto es lo que carga:
+- estudiantes y representantes;
+- un carné activo por estudiante;
+- el historial de `asistencia.csv` como faltas: `falta_injustificada` se guarda como `injustificada` y `falta_justificada` como `justificada`. Los `presente` y los `atraso` no generan fila.
+
+- un estudiante técnico `EST-999` (curso `PRUEBA`, excluido de `v_tablero_hoy`) con el carné `HUMO-0000000000000` para la prueba de humo del despliegue.
+
+Los 10 estudiantes del demo no tienen ingresos ni faltas en `FECHA_DEMO`, porque ese día no tiene datos.
+
+Además, `scripts/seed.py` genera `data/carnes_demo.pdf` con los QR de 10 estudiantes para el demo. Los demás carnés quedan solo como datos.
 
 | Tabla | Columnas | Reglas |
 | --- | --- | --- |
@@ -22,9 +32,10 @@ Migraciones en `supabase/migrations/`. El seed se genera con `scripts/seed.py` d
 | `carnes` | `token text pk`, `estudiante_codigo text fk`, `activo boolean default true` | El QR del carné contiene **solo el token** (aleatorio, 16 caracteres o más); nunca el código del estudiante |
 | `ingresos` | `id bigserial pk`, `estudiante_codigo text fk`, `fecha date`, `hora timestamptz`, `origen text check (origen in ('totem','app'))` | `unique (estudiante_codigo, fecha)`: un ingreso por día |
 | `faltas` | `id bigserial pk`, `estudiante_codigo text fk`, `fecha date`, `estado text check (estado in ('injustificada','pendiente','justificada','rechazada'))` | `unique (estudiante_codigo, fecha)` |
-| `justificativos` | `id bigserial pk`, `representante_codigo text fk`, `estudiante_codigo text fk null`, `tipo_entrada text check (tipo_entrada in ('texto','voz','foto'))`, `extraccion jsonb`, `validacion jsonb`, `estado text check (estado in ('pendiente','aprobado','rechazado','revision_manual'))`, `creado timestamptz default now()` | `extraccion` guarda la salida de C5 y `validacion` la de C6 |
+| `justificativos` | `id bigserial pk`, `representante_codigo text fk`, `estudiante_codigo text fk null`, `tipo_entrada text check (tipo_entrada in ('texto','voz','foto'))`, `mensaje_original text`, `foto_file_id text null`, `extraccion jsonb`, `validacion jsonb`, `estado text check (estado in ('pendiente','aprobado','rechazado','revision_manual'))`, `creado timestamptz default now()` | `mensaje_original`: el texto o la transcripción. `foto_file_id`: el `file_id` de Telegram (la foto no se guarda en la base). `extraccion` guarda la salida de C5 y `validacion` la de C6 |
 | `auditoria` | `id bigserial pk`, `actor text`, `accion text`, `entidad text`, `entidad_id text`, `detalle jsonb`, `creado timestamptz default now()` | Solo inserción. Actor: `inspector:<chat_id>`, `sistema:WF1`… |
 | `eventos_tablero` | `id bigserial pk`, `tipo text`, `curso text`, `paralelo text`, `creado timestamptz default now()` | **Sin datos personales.** Es lo único que el navegador escucha en tiempo real |
+| `configuracion` | `clave text pk`, `valor text` | Por ejemplo `inspector_chat_id`. Solo la escribe n8n |
 
 **Vista** `v_tablero_hoy` (curso, paralelo, presentes, ausentes, pendientes, justificadas) calculada para `FECHA_DEMO`.
 
@@ -36,11 +47,15 @@ Migraciones en `supabase/migrations/`. El seed se genera con `scripts/seed.py` d
 
 **Realtime:** publicar solo `eventos_tablero` en `supabase_realtime`.
 
+**Escrituras atómicas:** cada paso que toca varias tablas se hace con **una sola sentencia SQL con CTE** en un único nodo Postgres. Por ejemplo: insertar el ingreso, el evento y la auditoría. Así no quedan escrituras a medias.
+
 ## C2 · Webhook de ingreso (tótem y app → WF1)
 
 `POST {N8N_BASE_URL}/webhook/portika/ingreso`
 
 Cabecera `X-Portika-Clave: <PORTIKA_CLAVE_DISPOSITIVO>`. Es un secreto compartido de los dispositivos de la puerta; si no coincide, la respuesta es 401.
+
+**CORS:** el navegador envía una cabecera propia, así que hace un `OPTIONS` previo. El webhook debe permitir el origen del dominio de Vercel y la cabecera `X-Portika-Clave` (opción de orígenes permitidos del nodo Webhook; **verificar en la instancia**).
 
 ```json
 { "carne_token": "k3P9xQ2mVt7LwZ4a", "origen": "totem", "dispositivo": "puerta-principal", "escaneado_en": "2026-01-12T07:14:03-05:00" }
@@ -82,7 +97,7 @@ Efectos de un `registrado`:
 - Dos bots: **Pórtika** para el demo y **Pórtika dev** para desarrollo. Telegram admite un solo webhook por bot, y la URL de prueba pisa la de producción.
 - **Un único Telegram Trigger por bot**, ubicado en WF3, que enruta por tipo de mensaje:
   - `/start REP-014` (enlace `t.me/<bot>?start=REP-014`): guarda el `chat_id` en `representantes` y responde «Listo, recibirás aquí los avisos de asistencia».
-  - `/start INSPECTOR-<clave>`: registra el chat del inspector en la variable `INSPECTOR_CHAT_ID` de n8n.
+  - `/start INSPECTOR-<PORTIKA_CLAVE_INSPECTOR>`: si la clave coincide, guarda el chat del inspector. La guarda en la tabla `configuracion`, porque las variables de n8n no se escriben desde un workflow (**verificar en la instancia**). Si no se usa la tabla, se carga a mano en la variable `INSPECTOR_CHAT_ID`.
   - Texto, nota de voz o foto de un representante vinculado: va al flujo del justificativo (C5 y C6).
   - Mensaje de un chat no vinculado: «No encuentro tu registro; usa el enlace que te envió el colegio».
 - La aprobación de WF4 usa **Send and Wait for Response**. Según la documentación de n8n, la aprobación dentro del chat comparte el webhook del Telegram Trigger en versiones compatibles. **Hay que comprobarlo en la instancia.** Plan B: aprobación por enlace (opción del mismo nodo).
@@ -139,7 +154,12 @@ Si todas pasan, `destino = "aprobacion"` y las faltas cubiertas pasan a `pendien
   - la familia recibe «Tu justificativo fue aprobado».
 - **Rechazar:** las faltas vuelven a `injustificada`, el justificativo pasa a `rechazado`, se escribe en auditoría y se avisa a la familia.
 - Sin respuesta en 24 h: el justificativo queda `pendiente`.
+- Si un caso en `revision_manual` no tiene `estudiante_codigo` o `fechas`, al aprobar o rechazar solo se actualizan `justificativos` y `auditoria`. No se tocan las `faltas` ni se emiten eventos: el inspector corrige la falta a mano.
 - Los casos en `revision_manual` también llegan al inspector, marcados como tales.
+
+## C7b · Prueba de humo (D3)
+
+Después de publicar, el CD hace un POST al webhook C2 con el carné `HUMO-0000000000000` y la cabecera de GitHub Secrets. Acepta `registrado` o `duplicado`, porque el segundo despliegue del día devuelve `duplicado`. Luego comprueba con la API de Supabase que existe la fila de `EST-999` en `ingresos`. Si falla, el job falla.
 
 ## C8 · Errores (WF0)
 
@@ -152,8 +172,8 @@ Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat d
 | Front (`.env`, público) | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_N8N_BASE_URL` | Tablero y tótem |
 | Dispositivo de la puerta | `PORTIKA_CLAVE_DISPOSITIVO` | Cabecera de C2 y C3; se ingresa una vez en la tablet y no va al repo |
 | Credenciales de n8n | Telegram, Gemini y Postgres de Supabase (clave de servicio) | Nunca en el repo ni en los JSON exportados |
-| Variables de n8n | `FECHA_DEMO`, `PLAZO_DIAS`, `INSPECTOR_CHAT_ID`, `EQUIPO_CHAT_ID`, `PORTIKA_CLAVE_DISPOSITIVO` | Configuración de los workflows |
-| GitHub Secrets | `N8N_API_KEY`, `N8N_BASE_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID`, `VERCEL_TOKEN` | Despliegue (D1–D4) |
+| Variables de n8n | `FECHA_DEMO`, `PLAZO_DIAS`, `INSPECTOR_CHAT_ID` (opcional, ver C4), `EQUIPO_CHAT_ID`, `PORTIKA_CLAVE_DISPOSITIVO`, `PORTIKA_CLAVE_INSPECTOR` | Configuración de los workflows |
+| GitHub Secrets | `N8N_API_KEY`, `N8N_BASE_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID`, `VERCEL_TOKEN`, `PORTIKA_CLAVE_DISPOSITIVO` | Despliegue (D1–D4) y prueba de humo |
 
 ## C10 · Estructura del repo
 
@@ -162,6 +182,7 @@ supabase/migrations/*.sql   esquema (C1)
 supabase/seed.sql           generado por scripts/seed.py
 scripts/seed.py             dataset ficticio → seed.sql y tokens de carné
 n8n/0N-nombre.json          un archivo por workflow, sin pinData ni credenciales
+n8n/ids.json                mapa archivo → ID del workflow en la instancia (no es secreto)
 src/web/                    tótem, app del inspector y tablero (Vite)
 tests/                      reglas C6 y validaciones de los JSON
 ```
