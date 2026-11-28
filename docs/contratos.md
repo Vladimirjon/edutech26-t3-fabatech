@@ -165,7 +165,7 @@ Después de publicar, el CD hace un POST al webhook C2 con el carné `HUMO-00000
 
 ## C8 · Errores (WF0)
 
-Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat del equipo (`equipo_chat_id`, escrito fijo en WF0 para que la alerta no dependa de Supabase) el nombre del workflow, el nodo que falló y el enlace a la ejecución.
+Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat del equipo (`equipo_chat_id`, escrito fijo en WF0 y no en `configuracion`, para que la alerta no dependa de Supabase) el nombre del workflow, el nodo que falló y el enlace a la ejecución.
 
 ## C9 · Configuración y secretos
 
@@ -174,7 +174,7 @@ Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat d
 | Front (`.env`, público) | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_N8N_BASE_URL` | Tablero y tótem |
 | Dispositivo de la puerta | `PORTIKA_CLAVE_DISPOSITIVO` | Cabecera de C2 y C3; se ingresa una vez en la tablet y no va al repo |
 | Credenciales de n8n | `Telegram Portika`, `Telegram Portika dev`, `Gemini Portika` y `Postgres Portika` (contraseña de la base de datos, Session pooler, SSL `Require` con el certificado CA de Supabase) | Nunca en el repo ni en los JSON exportados |
-| Tabla `configuracion` (Supabase) | `fecha_demo`, `plazo_dias`, `equipo_chat_id`, `portika_clave_dispositivo`, `portika_clave_inspector`; `inspector_chat_id` la escribe n8n (C4) | Configuración de los workflows; se lee con un nodo Postgres. Se carga a mano, nunca en `seed.sql`. Las claves se comparan en SQL (`where clave = ... and valor = $1`) y nunca se devuelven, para que no queden en las ejecuciones de n8n |
+| Tabla `configuracion` (Supabase) | `fecha_demo`, `plazo_dias`, `portika_clave_dispositivo`, `portika_clave_inspector`; `inspector_chat_id` la escribe n8n (C4) | Configuración de los workflows; se lee con un nodo Postgres. Se carga a mano, nunca en `seed.sql`. Las claves se comparan en SQL (`where clave = ... and valor = $1`) y nunca se devuelven, para que no queden en las ejecuciones de n8n |
 | GitHub Secrets | `N8N_API_KEY`, `N8N_BASE_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID`, `VERCEL_TOKEN`, `PORTIKA_CLAVE_DISPOSITIVO` | Despliegue (D1–D4) y prueba de humo |
 
 Las Variables de n8n (`$vars`) no están en el plan Starter: la instancia muestra «Available on Pro plan». Por eso la configuración vive en `configuracion`, que `anon` no puede leer.
