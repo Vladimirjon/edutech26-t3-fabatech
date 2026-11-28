@@ -141,7 +141,7 @@ Entrada: la salida de C5, el `chat_id` y `FECHA_DEMO`. Salida guardada en `justi
 | --- | --- | --- |
 | R1 | El estudiante pertenece al representante del chat. Si `estudiante_codigo` es `null` y hay **un solo** hijo, se usa ese | `revision_manual` |
 | R2 | Cada fecha corresponde a una falta `injustificada` o `pendiente` de ese estudiante | `revision_manual` |
-| R3 | Ninguna fecha es futura y todas están dentro de `plazo_dias` días hábiles (fila de `configuracion`) (por defecto 3) | `rechazado`, con aviso a la familia |
+| R3 | Ninguna fecha es futura y todas están dentro de `plazo_dias` días hábiles (fila de `configuracion`; por defecto 3) | `rechazado`, con aviso a la familia |
 | R4 | `confianza` ≥ 0,6 | `revision_manual` |
 
 Si todas pasan, `destino = "aprobacion"` y las faltas cubiertas pasan a `pendiente`. Las reglas se prueban con `node:test` sobre el `jsCode` extraído del JSON del workflow (ver #5).
