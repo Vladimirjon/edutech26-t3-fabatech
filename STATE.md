@@ -113,7 +113,7 @@ Hecho:
 - Verificado: el ejemplo da 0,5 h, cada cita aparece en el README o en los contratos y `node --test` pasa 44/44.
 
 Pendiente:
-- Declaraciones de Brandon y Jorge cargadas en `AI_USAGE.md` según lo que Johann confirmó el 28-nov. Falta que ellos lean el PR #28 y den el visto bueno; después se cierra #13.
+- Declaraciones de Brandon y Jorge cargadas en `AI_USAGE.md` según lo que Johann confirmó el 28-nov. PR #28 con «Closes #13»: listo para fusionar.
 - Licencia de `segno` por confirmar.
 - Latencia del tótem (< 2 s) y del bot sin medir. Al medirlas se rotulan «medido en el prototipo, no en un colegio».
 

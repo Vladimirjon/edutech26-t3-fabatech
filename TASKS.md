@@ -23,7 +23,7 @@ Las tareas viven en los issues de GitHub (ver `docs/plan.md`). Estado de las de 
 | --- | --- | --- |
 | #3 | Esquema Supabase, migraciones y seed sintético | hecho (PR #21) |
 | #9 | WF3 · reglas, prompts y flujo en n8n | en curso: WF3 publicado; se cierra al integrar WF4 (#10) |
-| #13 | Ahorro, AI_USAGE y PRIOR_WORK | en curso: PR abierto; faltan las confirmaciones de Brandon y Jorge |
+| #13 | Ahorro, AI_USAGE y PRIOR_WORK | hecho al fusionar el PR #28 |
 
 ## Entrega · sáb 14:00
 
