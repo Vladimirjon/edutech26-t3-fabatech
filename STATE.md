@@ -1,6 +1,6 @@
 # STATE.md · Dónde está el trabajo
 
-_Última actualización: sáb 28-nov-2026 04:30 (UTC-5)._
+_Última actualización: sáb 28-nov-2026 06:45 (UTC-5)._
 
 ## Hecho
 
@@ -48,17 +48,29 @@ _Última actualización: sáb 28-nov-2026 04:30 (UTC-5)._
 - La API pública de n8n no existe en la prueba gratis de Cloud, pero sí en Starter (docs.n8n.io/api).
 - Telegram admite un solo webhook por bot: las URL de prueba y producción se pisan.
 
-## Al 28-nov 04:30 · instancia y credenciales
+## Al 28-nov 06:45 · instancia, credenciales y WF1
 
-- #4 cerrado por Brandon con evidencia (comentario de cierre del #4): publicación por API (PUT y publish con 200) y webhook temporal con `{"ok":true}`. `tmp-smoke-test` quedó despublicado pero no borrado: hay que borrarlo.
-- Credenciales en el proyecto Portika de n8n: `Postgres Portika` (Session pooler, SSL con el certificado CA de Supabase; Johann vio «Connection tested successfully»), `Gemini Portika` (AI Studio, nivel gratis, sin facturación), `Telegram Portika` y `Telegram Portika dev`.
-- Las Variables de n8n son solo del plan Pro: la configuración pasa a la tabla `configuracion` (C9). Johann cargó `fecha_demo`, `plazo_dias` y las dos claves (generadas en la base); `inspector_chat_id` la escribe n8n.
-- `PORTIKA_CLAVE_DISPOSITIVO` ya está en GitHub Secrets. `VERCEL_TOKEN` ya no hace falta: Johann conectó el proyecto `portika` de Vercel (Hobby) al repo, con las 3 variables `VITE_*` cargadas y dominio `https://portika.vercel.app`. Su primer build falla porque aún no hay front; cuando exista `src/web`, se cambia la carpeta raíz ahí.
-- PR #20 (Jorge): CI en verde, en borrador. Faltan CD y prueba de humo, que esperan a los workflows. #6 y #11 sin ramas.
-- Ningún workflow del demo subido todavía (#7 a #10 y #12).
+Hecho:
+- #4 cerrado por Brandon con evidencia (comentario de cierre): publicación por API (PUT y publish con 200). `tmp-smoke-test` ya está borrado.
+- Credenciales en el proyecto Portika de n8n: `Postgres Portika` (Session pooler, SSL con el certificado CA de Supabase; conexión probada), `Gemini Portika` (AI Studio, nivel gratis, sin facturación), `Telegram Portika` y `Telegram Portika dev`.
+- Las Variables de n8n son solo del plan Pro: la configuración vive en la tabla `configuracion` (C9). Cargadas `fecha_demo`, `plazo_dias` y las dos claves (generadas en la base); `inspector_chat_id` la escribe WF3. La clave del dispositivo se rotó el 28-nov tras exponerse en el chat.
+- GitHub Secrets: `N8N_API_KEY`, `N8N_BASE_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID` y `PORTIKA_CLAVE_DISPOSITIVO` (valor rotado). `PORTIKA_CLAVE_INSPECTOR` se borró porque nada lo usa. `VERCEL_TOKEN` no hace falta.
+- Vercel: proyecto `portika` (Hobby) conectado al repo, con las 3 variables `VITE_*` (la clave de Supabase es la publishable) y dominio `https://portika.vercel.app`. Sus builds fallan hasta que exista `src/web`; decisión: no usar "Ignored Build Step", se ajusta con Jorge cuando suba el front (cambiar la carpeta raíz a `src/web`).
+- #7 WF1 · Ingreso publicado (id `2n7b6lYPCNvRyc7e`, PR #24). Consulta probada en Postgres 15.8 (401 y 404 sin escrituras, registrado, duplicado, 6 escaneos simultáneos → una sola fila) y en producción con el carné de humo (`duplicado`, hora con `-05:00`).
+- #9, parte de Johann (PR #23): reglas C6 en `n8n/codigo/c6-reglas.js` (se pegan en el nodo Code «Reglas C6»), pruebas en `tests/c6-reglas.test.mjs` y prompts en `docs/prompts-wf3.md`. R3 manda (fecha futura o fuera de plazo → `rechazado`, como C6) y si R2 falla `fechas` sale vacía para que C7 no reabra faltas justificadas. Prompts probados en AI Studio con texto, foto y voz.
+- Issues #5, #6 y #19 actualizados con estos cambios; comentarios de estado en #9 y #19.
 
-- #9 (parte de Johann) fusionado en `main` (PR #23): reglas C6 en `n8n/codigo/c6-reglas.js` (se pegan en el nodo Code «Reglas C6»), pruebas en `tests/c6-reglas.test.mjs` y prompts en `docs/prompts-wf3.md`. Tras la revisión cruzada: R3 manda (fecha futura o fuera de plazo → `rechazado`, como C6), y si R2 falla `fechas` sale vacía (las pedidas van en `fechas_pedidas`) para que C7 no reabra faltas ya justificadas. Prompts probados en AI Studio con texto, foto y voz (tabla en `docs/prompts-wf3.md`). Falta probarlos dentro de n8n.
-- #7 WF1 · Ingreso **publicado** en n8n (id `2n7b6lYPCNvRyc7e`, rama `feat/07-wf1-ingreso`). Consulta probada en Postgres 15.8 (401 y 404 sin escrituras, registrado, duplicado, 6 escaneos simultáneos → una sola fila) y en producción con el carné de humo (`duplicado`, hora con `-05:00`). La clave del dispositivo se rotó el 28-nov tras exponerse en el chat. Falta probar el CORS desde `portika.vercel.app`.
+Reparto hasta el ensayo de las 10:00:
+- Brandon: WF2 (#8) → WF4 (#10) → WF0 (#12), con WF1 como modelo de estilo.
+- Jorge: parte de CI del PR #20 (hoy las pruebas `node --test` solo corren en local) → puerta (#6) contra WF1 → tablero (#11).
+- Johann: flujo de WF3 en n8n (#9) → ahorro y AI_USAGE (#13) → guion (#14).
+
+Pendiente o sin verificar:
+- CORS de WF1 desde `portika.vercel.app` y la meta de menos de 2 s (se prueba con #6).
+- WF3 dentro de n8n; WF2, WF4 y WF0 sin empezar; front sin empezar.
+- Probar un mensaje de cada bot y pasar los workflows a Pórtika antes de #16 (#19).
+- `AI_USAGE.md` sin lo del 28-nov (#13).
+- R3 no descuenta feriados (atajo anotado en el código; suficiente para el demo del 12-ene).
 
 ### Aprendido (28-nov)
 
