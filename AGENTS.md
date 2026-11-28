@@ -1,6 +1,6 @@
-# AGENTS.md · Reglas para personas y agentes de IA en este repo
+# AGENTS.md · Reglas para personas y agentes de IA en el repo de Pórtika
 
-Aplica a los tres integrantes y a cualquier agente (Claude Code, Codex, Antigravity, Copilot). Lee primero `STATE.md` y `TASKS.md`.
+Aplica a los tres integrantes y a cualquier agente (Claude Code, Codex, Antigravity, Copilot). Lee primero `STATE.md`, `TASKS.md` y [`docs/contratos.md`](docs/contratos.md): ningún cambio rompe un contrato sin un PR que lo modifique primero.
 
 ## Reglas del evento (no negociables)
 

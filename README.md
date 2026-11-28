@@ -1,7 +1,9 @@
-# edutech26-t3-fabatech · Asistencia que se registra en la puerta
+# Pórtika · la asistencia se registra en la puerta
 
 Hackathon EduTech Eight Academy by n8n · 27 y 28 de noviembre de 2026 · Track **T3 · Soluciones comerciales y administrativas para instituciones**.
 
+> **Pórtika** es la app web y el bot de Telegram. Los formatos entre piezas están en [`docs/contratos.md`](docs/contratos.md) y el plan, en [`docs/plan.md`](docs/plan.md).
+>
 > Estado: **checkpoint 1** (problema, usuario, evidencia y arquitectura). El nombre del producto es provisional.
 
 ## Problema
@@ -53,7 +55,7 @@ La meta concreta de horas ahorradas se fija y se mide en la spec. El techo es el
 
 ## Arquitectura
 
-![Arquitectura de Asistencia en la puerta](docs/arquitectura.png)
+![Arquitectura de Pórtika](docs/arquitectura.png)
 
 Fuente editable: [`docs/arquitectura.svg`](docs/arquitectura.svg). Se regenera con `python scripts/diagrama_arquitectura.py scripts/iconos docs/arquitectura.svg docs/_render.html`. Los logos son de [Simple Icons](https://simpleicons.org) (CC0).
 
