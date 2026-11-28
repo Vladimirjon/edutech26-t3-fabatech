@@ -103,3 +103,17 @@ Pendiente:
 - n8n Cloud llega a Supabase por el Session pooler (la conexión directa es solo IPv6) y pide el certificado CA de Supabase con SSL `Require`.
 - GitHub nunca muestra el valor de un secreto: no sirve para compartir claves.
 - Vincular facturación en AI Studio pasa la cuenta a pago, y el crédito de prueba de Google Cloud no cubre la API de Gemini.
+
+## Al 28-nov 10:10 · Revisión del PR #27 (WF2 · Ausencias, rama `feat/08-wf2-ausencias`)
+
+Hecho:
+- WF2 publicado (id `eUxqcbcHWeBsyQqE`, versión `a4c05a65`). El export del repo es esa versión.
+- Arreglos de la revisión: `n8n/ids.json` volvía a ser JSON válido (faltaba una coma tras el merge), la prueba esperaba «Telegram Portika dev», ahora no se guardan las ejecuciones exitosas (como WF1 y WF3: guardaban la clave del dispositivo y los `chat_id`) y Telegram sigue con el resto de familias si falla un chat (antes cortaba los envíos y el webhook devolvía 500 con las faltas ya escritas).
+- Probado: `node --test` 49/49, y el CTE en Postgres 15.8 con migraciones y seed: clave mala o vacía sin escrituras, primer cierre con 239 faltas, eventos y auditorías (sin el estudiante con ingreso ni EST-999), cierre repetido sin nada nuevo, hermanos con el mismo `chat_id`.
+- Borrados en producción los datos de las pruebas de WF2: 480 faltas (2026-01-19 y 2026-11-28) y 480 eventos `ausencia`. La auditoría queda (solo inserción).
+
+Pendiente:
+- Borrar en n8n las ejecuciones antiguas de WF2: guardan la clave del dispositivo en texto plano. Valorar rotarla.
+- El Schedule corre de lunes a viernes a las 07:30 con la fecha real: el lunes 30-nov creará faltas de ese día para todos y avisará a los chats vinculados. Desactivarlo después del demo o antes de ese lunes.
+- `mensajes_enviados` cuenta los envíos previstos, no los entregados; un aviso fallido no se reintenta al repetir el cierre. Una fecha inválida en el webhook responde 200 con ceros.
+- Para probar WF2 no usar la base de producción: las pruebas dejan faltas que WF3 ve como abiertas.

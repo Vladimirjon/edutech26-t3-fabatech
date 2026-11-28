@@ -11,6 +11,7 @@ Usamos IA para construir. Una persona del equipo revisa cada cambio antes de fus
 | Codex (OpenAI) | GPT | Implementación y pruebas del CI del #5, ajustes del dictamen e integración de las pruebas de esquema del #3 | Jorge (revisión pendiente) |
 | Antigravity (Google) | Gemini | Análisis exploratorio del dataset, revisión cruzada de la arquitectura y del esquema (#3) | Johann |
 | Antigravity (Google) | Gemini | Implementación, despliegue en n8n Cloud, exportación y pruebas unitarias de WF2 · Ausencias (#8) | Brandon |
+| Codex (OpenAI) y Claude Code (Anthropic) | GPT y Claude | 28-nov · Revisión del PR #27 (WF2). Codex hizo la revisión cruzada. Claude Code probó el CTE en Postgres 15.8, aplicó los arreglos, publicó WF2 en n8n por MCP y borró los datos de prueba de producción | Johann |
 
 ## IA dentro del producto
 

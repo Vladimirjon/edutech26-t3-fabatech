@@ -12,7 +12,7 @@ test('WF2 exporta metadata, settings y disparadores conforme a C0 y C3', () => {
   assert.equal(workflow.settings.timezone, 'America/Guayaquil');
   assert.equal(workflow.settings.executionOrder, 'v1');
   assert.equal(workflow.settings.saveDataErrorExecution, 'all');
-  assert.equal(workflow.settings.saveDataSuccessExecution, 'all');
+  assert.equal(workflow.settings.saveDataSuccessExecution, 'none');
   assert.ok(!Object.hasOwn(workflow, 'pinData'));
   assert.doesNotMatch(contenidoCrudo, /"pinData"\s*:/);
 
@@ -48,11 +48,13 @@ test('WF2 usa credenciales de referencia y un único CTE atómico en Postgres', 
 
   assert.deepEqual(Object.keys(telegram.credentials), ['telegramApi']);
   assert.deepEqual(Object.keys(telegram.credentials.telegramApi).sort(), ['id', 'name']);
-  assert.equal(telegram.credentials.telegramApi.name, 'Telegram Portika dev');
+  assert.equal(telegram.credentials.telegramApi.name, 'Telegram Portika');
   assert.ok(telegram.credentials.telegramApi.id.trim());
   assert.equal(telegram.parameters.resource, 'message');
   assert.equal(telegram.parameters.operation, 'sendMessage');
   assert.equal(telegram.parameters.additionalFields.appendAttribution, false);
+  assert.equal(telegram.onError, 'continueRegularOutput');
+  assert.ok(!telegram.retryOnFail);
 
   const { operation, query, options } = postgres.parameters;
   assert.equal(operation, 'executeQuery');

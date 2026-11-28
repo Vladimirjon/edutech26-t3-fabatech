@@ -175,9 +175,10 @@
         "resource": "message",
         "text": "={{ $json.mensaje }}"
       },
-      "retryOnFail": true,
+      "retryOnFail": false,
       "maxTries": 3,
       "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
       "webhookId": "8e09fc11-d69c-428b-82b5-a1114be02259",
       "credentials": {
         "telegramApi": {
@@ -362,9 +363,9 @@
     "callerPolicy": "workflowsFromSameOwner",
     "timezone": "America/Guayaquil",
     "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "all"
+    "saveDataSuccessExecution": "none"
   },
-  "versionId": "65c4744e-f754-4536-9b2c-07e8c219eda3",
+  "versionId": "a4c05a65-74b9-4e68-9bc4-998811ae2f59",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp"
