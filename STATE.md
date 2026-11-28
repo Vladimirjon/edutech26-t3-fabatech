@@ -113,10 +113,11 @@ Hecho:
 - Verificado: el ejemplo da 0,5 h, cada cita aparece en el README o en los contratos y `node --test` pasa 44/44.
 
 Pendiente:
-- Brandon (Antigravity) y Jorge (Codex y Antigravity): para qué usaron cada herramienta y qué entregaron. Cuando lo confirmen, se cierra #13.
-- «Qué se reutilizó» de `00`, `01` y `03` sigue [por confirmar], igual que la licencia de `segno`.
+- Declaraciones de Brandon y Jorge cargadas en `AI_USAGE.md` según lo que Johann confirmó el 28-nov. Falta que ellos lean el PR #28 y den el visto bueno; después se cierra #13.
+- Licencia de `segno` por confirmar.
 - Latencia del tótem (< 2 s) y del bot sin medir. Al medirlas se rotulan «medido en el prototipo, no en un colegio».
 
 Aprendido:
+- Las notas `01` y `03` de `prep/` eran para la idea de cobranza, que se descartó. De ahí solo quedaron el stack y el principio «la IA interpreta, las reglas deciden».
 - No hubo entrevistas. La evidencia es el estudio del Ministerio (README) y el dataset ficticio.
 - Un encargo sin `-Worktree` no se puede reanudar. Para iterar con el mismo agente, el primer encargo se lanza con `-Worktree`.

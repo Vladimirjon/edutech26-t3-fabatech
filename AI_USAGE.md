@@ -13,8 +13,8 @@ Usamos IA para construir. Una persona del equipo revisa cada cambio antes de fus
 | Codex (OpenAI) y Claude Code (Anthropic) | GPT y Claude | 28-nov · WF1 · Ingreso (#7, PR #24). Codex implementó WF1. Claude Code revisó y probó la consulta en Postgres 15.8 y en producción. Hubo una revisión cruzada con 6 hallazgos aplicados | Johann |
 | Codex (OpenAI), Antigravity (Google) y Claude Code (Anthropic) | GPT, Gemini y Claude | 28-nov · WF3 · Justificativo (#9). Codex implementó el flujo y los arreglos. Antigravity hizo 2 revisiones cruzadas. Claude Code orquestó, revisó, probó el SQL y consultó la instancia de n8n por MCP | Johann |
 | Codex (OpenAI) y Antigravity (Google) | GPT y Gemini | 28-nov · #13. Codex redactó la estimación de ahorro y actualizó las declaraciones. Antigravity hizo la revisión cruzada | Johann |
-| Antigravity (Google) | **[por confirmar]** | uso y entregables **[por confirmar]** | Brandon |
-| Codex (OpenAI) y Antigravity (Google) | **[por confirmar]** | uso y entregables **[por confirmar]** | Jorge |
+| Antigravity (Google), con agentes | Claude Sonnet 5.5 | 28-nov · Implementación en todos sus issues y PR | Brandon: revisó y aprobó cada diff |
+| Codex (OpenAI) y Antigravity (Google) | GPT-6.2 Sol y Gemini 4 Hydrogen | 28-nov · Implementación en todos sus issues y PR | Jorge: revisó y aprobó cada diff |
 
 ## IA dentro del producto
 
