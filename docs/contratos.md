@@ -37,7 +37,7 @@ Además, `scripts/seed.py` genera `data/carnes_demo.pdf` con los QR de 10 estudi
 | `eventos_tablero` | `id bigserial pk`, `tipo text`, `curso text`, `paralelo text`, `creado timestamptz default now()` | **Sin datos personales.** Es lo único que el navegador escucha en tiempo real |
 | `configuracion` | `clave text pk`, `valor text` | Por ejemplo `inspector_chat_id`. Solo la escribe n8n |
 
-**Vista** `v_tablero_hoy` (curso, paralelo, presentes, ausentes, pendientes, justificadas) calculada para `FECHA_DEMO`.
+**Vista** `v_tablero_hoy` (curso, paralelo, presentes, ausentes, pendientes, justificadas, sin_contacto) calculada para `FECHA_DEMO`. La fecha está fija en la vista y se cambia con una migración.
 
 **Seguridad:**
 - RLS activado en todas las tablas.

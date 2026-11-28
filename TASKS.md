@@ -17,7 +17,12 @@ Estados: `pendiente` · `en curso` · `hecho` · `bloqueado`. Cada tarea tiene u
 
 ## Checkpoint 2 · sáb 12:30
 
-_Se llena con la spec y el plan aprobados._
+Las tareas viven en los issues de GitHub (ver `docs/plan.md`). Estado de las de Johann:
+
+| Issue | Tarea | Estado |
+| --- | --- | --- |
+| #3 | Esquema Supabase, migraciones y seed sintético | en curso: aplicado y verificado en Supabase, falta el PR |
+| #9 | WF3 · prompts y reglas deterministas | pendiente |
 
 ## Entrega · sáb 14:00
 
