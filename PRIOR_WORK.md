@@ -27,7 +27,7 @@ Ventana oficial del evento: vie 27-nov 17:00 a sáb 28-nov 14:00 (UTC-5). Las no
 | --- | --- | --- |
 | `dataset-ficticio-colegio` | Datos sintéticos del demo | CC0 ([data/README.md](data/README.md)) |
 | Simple Icons | Logos del diagrama de arquitectura | CC0 ([README.md](README.md)) |
-| `segno==1.6.1` | Generación de códigos QR ([requirements.txt](requirements.txt)) | Licencia **[por confirmar]** |
+| `segno==1.6.1` | Códigos QR de los carnés del demo (`scripts/seed.py`) | BSD-3-Clause (archivo `LICENSE` del paquete 1.6.1) |
 | n8n Cloud Starter | Orquestación de workflows | términos del servicio |
 | Supabase (plan gratis) | Base de datos | términos del servicio |
 | Vercel Hobby | Alojamiento web | términos del servicio |

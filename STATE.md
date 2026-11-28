@@ -114,7 +114,6 @@ Hecho:
 
 Pendiente:
 - Declaraciones de Brandon y Jorge cargadas en `AI_USAGE.md` según lo que Johann confirmó el 28-nov. PR #28 con «Closes #13»: listo para fusionar.
-- Licencia de `segno` por confirmar.
 - Latencia del tótem (< 2 s) y del bot sin medir. Al medirlas se rotulan «medido en el prototipo, no en un colegio».
 
 Aprendido:
