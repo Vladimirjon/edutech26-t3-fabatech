@@ -8,7 +8,7 @@ Nombre del producto: **Pórtika** (la app web y el bot de Telegram).
 
 - Zona horaria: `America/Guayaquil`. Fechas `AAAA-MM-DD`; marcas de tiempo ISO 8601 con zona (`2026-01-12T07:14:03-05:00`).
 - Códigos del dataset: estudiante `EST-###`, representante `REP-###`, curso `"8vo EGB"`, paralelo `"A"`.
-- Fecha del demo: variable `FECHA_DEMO = 2026-01-12` (lunes). Es un día **sin datos**: el historial del dataset llega hasta el 19-dic-2025. Así el demo arranca limpio y todo lo de ese día lo crean el tótem y WF2.
+- Fecha del demo (`FECHA_DEMO`): `2026-01-12` (lunes). Los workflows la leen de la fila `fecha_demo` de `configuracion` (C9). Es un día **sin datos**: el historial del dataset llega hasta el 19-dic-2025. Así el demo arranca limpio y todo lo de ese día lo crean el tótem y WF2.
 - Las pruebas automáticas fijan su propia fecha y no dependen de `FECHA_DEMO`.
 - Todo es sintético. Los únicos `chat_id` reales son los de los teléfonos del equipo y del jurado en el demo, y se borran después.
 
@@ -35,14 +35,14 @@ Además, `scripts/seed.py` genera `data/carnes_demo.pdf` con los QR de 10 estudi
 | `justificativos` | `id bigserial pk`, `representante_codigo text fk`, `estudiante_codigo text fk null`, `tipo_entrada text check (tipo_entrada in ('texto','voz','foto'))`, `mensaje_original text`, `foto_file_id text null`, `extraccion jsonb`, `validacion jsonb`, `estado text check (estado in ('pendiente','aprobado','rechazado','revision_manual'))`, `creado timestamptz default now()` | `mensaje_original`: el texto o la transcripción. `foto_file_id`: el `file_id` de Telegram (la foto no se guarda en la base). `extraccion` guarda la salida de C5 y `validacion` la de C6 |
 | `auditoria` | `id bigserial pk`, `actor text`, `accion text`, `entidad text`, `entidad_id text`, `detalle jsonb`, `creado timestamptz default now()` | Solo inserción. Actor: `inspector:<chat_id>`, `sistema:WF1`… |
 | `eventos_tablero` | `id bigserial pk`, `tipo text`, `curso text`, `paralelo text`, `creado timestamptz default now()` | **Sin datos personales.** Es lo único que el navegador escucha en tiempo real |
-| `configuracion` | `clave text pk`, `valor text` | Por ejemplo `inspector_chat_id`. Solo la escribe n8n |
+| `configuracion` | `clave text pk`, `valor text` | Configuración de los workflows (C9). Las filas se cargan a mano una vez; solo `inspector_chat_id` la escribe n8n (C4) |
 
 **Vista** `v_tablero_hoy` (curso, paralelo, presentes, ausentes, pendientes, justificadas, sin_contacto) calculada para `FECHA_DEMO`. La fecha está fija en la vista y se cambia con una migración.
 
 **Seguridad:**
 - RLS activado en todas las tablas.
 - El rol `anon` (navegador) solo puede leer `v_tablero_hoy` y `eventos_tablero`.
-- n8n usa la clave de servicio, que nunca sale de las credenciales de n8n.
+- n8n se conecta como `postgres` con la contraseña de la base de datos, por el Session pooler y con SSL. Esa contraseña nunca sale de la credencial de n8n.
 - El tablero se suscribe a `eventos_tablero` y, ante cada evento, vuelve a leer `v_tablero_hoy`. Así ningún dato personal viaja al navegador.
 
 **Realtime:** publicar solo `eventos_tablero` en `supabase_realtime`.
@@ -97,12 +97,14 @@ Efectos de un `registrado`:
 - Dos bots: **Pórtika** para el demo y **Pórtika dev** para desarrollo. Telegram admite un solo webhook por bot, y la URL de prueba pisa la de producción.
 - **Un único Telegram Trigger por bot**, ubicado en WF3, que enruta por tipo de mensaje:
   - `/start REP-014` (enlace `t.me/<bot>?start=REP-014`): guarda el `chat_id` en `representantes` y responde «Listo, recibirás aquí los avisos de asistencia».
-  - `/start INSPECTOR-<PORTIKA_CLAVE_INSPECTOR>`: si la clave coincide, guarda el chat del inspector. La guarda en la tabla `configuracion`, porque las variables de n8n no se escriben desde un workflow (**verificar en la instancia**). Si no se usa la tabla, se carga a mano en la variable `INSPECTOR_CHAT_ID`.
+  - `/start INSPECTOR-<PORTIKA_CLAVE_INSPECTOR>`: si la clave coincide, guarda el chat del inspector. La guarda en la fila `inspector_chat_id` de `configuracion`. Si el vínculo falla, esa fila se carga a mano.
   - Texto, nota de voz o foto de un representante vinculado: va al flujo del justificativo (C5 y C6).
   - Mensaje de un chat no vinculado: «No encuentro tu registro; usa el enlace que te envió el colegio».
 - La aprobación de WF4 usa **Send and Wait for Response**. Según la documentación de n8n, la aprobación dentro del chat comparte el webhook del Telegram Trigger en versiones compatibles. **Hay que comprobarlo en la instancia.** Plan B: aprobación por enlace (opción del mismo nodo).
 
 ## C5 · Extracción con Gemini (WF3)
+
+Modelo: **Gemini 3.5 Flash Lite** en el nivel gratis de AI Studio (500 llamadas al día; Gemini 3.8 Flash solo da 20), con la credencial `Gemini Portika`. Probarlo con una foto y una nota de voz antes de fijarlo.
 
 Entrada: el texto, la transcripción de la voz o la imagen, junto con el contexto que se le pasa al modelo:
 - los hijos del representante (código y curso);
@@ -139,7 +141,7 @@ Entrada: la salida de C5, el `chat_id` y `FECHA_DEMO`. Salida guardada en `justi
 | --- | --- | --- |
 | R1 | El estudiante pertenece al representante del chat. Si `estudiante_codigo` es `null` y hay **un solo** hijo, se usa ese | `revision_manual` |
 | R2 | Cada fecha corresponde a una falta `injustificada` o `pendiente` de ese estudiante | `revision_manual` |
-| R3 | Ninguna fecha es futura y todas están dentro de `PLAZO_DIAS` hábiles (por defecto 3) | `rechazado`, con aviso a la familia |
+| R3 | Ninguna fecha es futura y todas están dentro de `plazo_dias` días hábiles (fila de `configuracion`) (por defecto 3) | `rechazado`, con aviso a la familia |
 | R4 | `confianza` ≥ 0,6 | `revision_manual` |
 
 Si todas pasan, `destino = "aprobacion"` y las faltas cubiertas pasan a `pendiente`. Las reglas se prueban con `node:test` sobre el `jsCode` extraído del JSON del workflow (ver #5).
@@ -163,17 +165,19 @@ Después de publicar, el CD hace un POST al webhook C2 con el carné `HUMO-00000
 
 ## C8 · Errores (WF0)
 
-Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat del equipo (`EQUIPO_CHAT_ID`) el nombre del workflow, el nodo que falló y el enlace a la ejecución.
+Error Trigger, configurado como workflow de error de WF1 a WF4. Envía al chat del equipo (fila `equipo_chat_id` de `configuracion`) el nombre del workflow, el nodo que falló y el enlace a la ejecución.
 
-## C9 · Variables y secretos
+## C9 · Configuración y secretos
 
 | Dónde | Nombre | Para qué |
 | --- | --- | --- |
 | Front (`.env`, público) | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_N8N_BASE_URL` | Tablero y tótem |
 | Dispositivo de la puerta | `PORTIKA_CLAVE_DISPOSITIVO` | Cabecera de C2 y C3; se ingresa una vez en la tablet y no va al repo |
-| Credenciales de n8n | Telegram, Gemini y Postgres de Supabase (clave de servicio) | Nunca en el repo ni en los JSON exportados |
-| Variables de n8n | `FECHA_DEMO`, `PLAZO_DIAS`, `INSPECTOR_CHAT_ID` (opcional, ver C4), `EQUIPO_CHAT_ID`, `PORTIKA_CLAVE_DISPOSITIVO`, `PORTIKA_CLAVE_INSPECTOR` | Configuración de los workflows |
+| Credenciales de n8n | `Telegram Portika`, `Telegram Portika dev`, `Gemini Portika` y `Postgres Portika` (contraseña de la base de datos, Session pooler, SSL `Require` con el certificado CA de Supabase) | Nunca en el repo ni en los JSON exportados |
+| Tabla `configuracion` (Supabase) | `fecha_demo`, `plazo_dias`, `equipo_chat_id`, `portika_clave_dispositivo`, `portika_clave_inspector`; `inspector_chat_id` la escribe n8n (C4) | Configuración de los workflows; se lee con un nodo Postgres. Se carga a mano, nunca en `seed.sql` |
 | GitHub Secrets | `N8N_API_KEY`, `N8N_BASE_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID`, `VERCEL_TOKEN`, `PORTIKA_CLAVE_DISPOSITIVO` | Despliegue (D1–D4) y prueba de humo |
+
+Las Variables de n8n (`$vars`) no están en el plan Starter: la instancia muestra «Available on Pro plan». Por eso la configuración vive en `configuracion`, que `anon` no puede leer.
 
 ## C10 · Estructura del repo
 
