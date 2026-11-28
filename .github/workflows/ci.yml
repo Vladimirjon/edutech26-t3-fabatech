@@ -5,11 +5,17 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   estructura:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Archivos obligatorios (Guía del hacker §4.2)
         run: |
           faltan=0
@@ -22,9 +28,23 @@ jobs:
           if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$'; then
             echo "::error::Hay un archivo .env versionado"; exit 1
           fi
-      - name: Workflows de n8n son JSON válido y sin pinData
+      - name: Escanear el historial con Gitleaks
+        shell: bash
+        env:
+          GITLEAKS_VERSION: '8.30.1'
+          GITLEAKS_SHA256: '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
         run: |
-          for f in n8n/*.json; do
-            [ -e "$f" ] || continue
-            python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit('pinData no vacío en '+sys.argv[1] if d.get('pinData') else 0)" "$f"
-          done
+          asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          archive="$RUNNER_TEMP/$asset"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${asset}"
+          printf '%s  %s\n' "$GITLEAKS_SHA256" "$archive" | sha256sum --check --status
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact=100 --no-banner .
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.3'
+          package-manager-cache: false
+      - name: Validar exports de n8n y ejecutar pruebas
+        run: node --test

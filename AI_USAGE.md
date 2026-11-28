@@ -1,6 +1,6 @@
 # Uso de inteligencia artificial
 
-Usamos IA para construir. Cada resultado lo revisó una persona del equipo antes de entrar al repositorio. Esta tabla se actualiza durante el evento.
+Usamos IA para construir. Una persona del equipo revisa cada cambio antes de fusionarlo a `main`. Esta tabla se actualiza durante el evento.
 
 ## Herramientas de desarrollo
 
@@ -8,6 +8,7 @@ Usamos IA para construir. Cada resultado lo revisó una persona del equipo antes
 | --- | --- | --- | --- |
 | Claude Code (Anthropic) | Claude | Lectura de las guías, plan de arquitectura, esqueleto del repositorio y revisión de cambios | Johann |
 | Codex (OpenAI) | GPT | Investigación de dominio con fuentes | Johann |
+| Codex (OpenAI) | GPT | Implementación y pruebas del CI del issue #5 | Jorge (revisión pendiente) |
 | Antigravity (Google) | Gemini | Análisis exploratorio del dataset y revisión cruzada de la arquitectura | Johann |
 
 ## IA dentro del producto
