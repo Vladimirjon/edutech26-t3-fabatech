@@ -1,6 +1,6 @@
 # STATE.md · Dónde está el trabajo
 
-_Última actualización: sáb 28-nov-2026 10:00 (UTC-5)._
+_Última actualización: sáb 28-nov-2026 11:02 (UTC-5)._
 
 ## Hecho
 
@@ -134,3 +134,19 @@ Pendiente:
 - Borrar en n8n las ejecuciones antiguas de WF2: guardan la clave del dispositivo en texto plano. Valorar rotarla.
 - `mensajes_enviados` cuenta los envíos previstos, no los entregados; un aviso fallido no se reintenta al repetir el cierre. Una fecha inválida en el webhook responde 200 con ceros.
 - Para probar WF2 no usar la base de producción: las pruebas dejan faltas que WF3 ve como abiertas.
+
+## Al 28-nov 11:02 · WF4 publicado (#10, rama `feat/10-wf4-aprobacion`)
+
+Hecho:
+- WF4 · Aprobación publicado en el proyecto Portika de n8n (id `16BixOJjcUjkEhXh`, versión `73eb3432`, sin `errorWorkflow` porque WF0 aún no existe). Exportado exactamente en `n8n/04-aprobacion.json` (sin `pinData` ni secretos) y registrado en `n8n/ids.json`.
+- Flujo: `Cuando lo llame WF3` (`executeWorkflowTrigger` v1.3 con `id`) → `Cargar contexto` (`tests/esquema/wf4_contexto.sql`) → `Listo para revisar?` → `Preparar mensaje inspector` (resumen escapado para Markdown v1, marca `⚠️ *REVISIÓN MANUAL*` y reglas C6) → `Tiene foto?` (`Enviar foto` con `continueRegularOutput` sin reintento) → `Pedir aprobación` (Send and Wait 24 h, `chatApproval: true`, `Telegram Portika` `uCJxcnNOFfvYnRgN`) → `Decisión recibida?` → `Aplicar decisión` (`tests/esquema/wf4_decision.sql`, CTE atómico idempotente con `FOR UPDATE`) → `Avisar familia?` → `Preparar aviso familia` → `Avisar familia`.
+- Settings verificados en instancia: `executionOrder: "v1"`, `timezone: "America/Guayaquil"`, `saveDataSuccessExecution: "none"`, `saveDataErrorExecution: "all"`, `callerPolicy: "workflowsFromSameOwner"`.
+- Probado en local sin tocar producción:
+  - SQL en Postgres 15.8 con Docker (migraciones + seed): contexto, aprobar `pendiente`, rechazar `pendiente` (dejando intacta una falta ya `justificada`), doble clic (idempotencia), `revision_manual` sin `estudiante_codigo` ni `fechas`, `revision_manual` con `estudiante_codigo` y `fechas`, ID inexistente/inválido y timeout de 24 h sin escritura.
+  - `node --test` en Docker `node:24` (`tests/workflows-n8n.test.mjs`, `tests/wf4-aprobacion.test.mjs` y resto de suites) + `scripts/probar_esquema.py`.
+- WF3 (`GhRiOqysx7IGKjK4` / `n8n/03-justificativo.json`) no fue editado ni ejecutado.
+
+Pendiente:
+- Asignar `errorWorkflow` a WF0 cuando se implemente #12 (WF0 aún no existe en la instancia).
+- Integrar WF4 en WF3 (#9, dueño Johann): habilitar «Enviar a WF4», seleccionar `16BixOJjcUjkEhXh` y mapear `id = {{ $json.id }}`.
+- Prueba manual en vivo por Telegram (enviar resumen/foto al inspector, pulsar Aprobar y Rechazar, verificar timeout en copia de prueba y confirmar que `chatApproval` en Send and Wait no interfiere con el webhook de WF3 ni dispara WF3; plan B de C4: desactivar `chatApproval` para usar aprobación por enlace).

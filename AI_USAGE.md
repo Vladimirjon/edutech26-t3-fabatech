@@ -16,6 +16,7 @@ Usamos IA para construir. Una persona del equipo revisa cada cambio antes de fus
 | Antigravity (Google), con agentes | Claude Sonnet 5.5 | 28-nov · Implementación en todos sus issues y PR | Brandon: revisó y aprobó cada diff |
 | Codex (OpenAI) y Antigravity (Google) | GPT-6.2 Sol y Gemini 4 Hydrogen | 28-nov · Implementación en todos sus issues y PR | Jorge: revisó y aprobó cada diff |
 | Codex (OpenAI) y Claude Code (Anthropic) | GPT y Claude | 28-nov · Revisión del PR #27 (WF2). Codex hizo la revisión cruzada. Claude Code probó el CTE en Postgres 15.8, aplicó los arreglos, publicó WF2 en n8n por MCP y borró los datos de prueba de producción | Johann |
+| Antigravity (Google) | Gemini | 28-nov · WF4 · Aprobación (#10, rama `feat/10-wf4-aprobacion`). Implementación de consultas SQL CTE, workflow en n8n, publicación/validación por MCP y pruebas locales en Postgres 15.8 y `node:test` | Ismael |
 
 ## IA dentro del producto
 
