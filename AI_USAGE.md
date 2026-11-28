@@ -10,6 +10,7 @@ Usamos IA para construir. Una persona del equipo revisa cada cambio antes de fus
 | Codex (OpenAI) | GPT | Investigación de dominio con fuentes. Implementación del esquema, del seed y del PDF de carnés (#3) a partir de un encargo escrito | Johann |
 | Codex (OpenAI) | GPT | Implementación y pruebas del CI del #5, ajustes del dictamen e integración de las pruebas de esquema del #3 | Jorge (revisión pendiente) |
 | Antigravity (Google) | Gemini | Análisis exploratorio del dataset, revisión cruzada de la arquitectura y del esquema (#3) | Johann |
+| Antigravity (Google) | Gemini | Implementación, despliegue en n8n Cloud, exportación y pruebas unitarias de WF2 · Ausencias (#8) | Brandon |
 
 ## IA dentro del producto
 
