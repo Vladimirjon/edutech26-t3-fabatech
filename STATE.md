@@ -1,6 +1,6 @@
 # STATE.md · Dónde está el trabajo
 
-_Última actualización: sáb 28-nov-2026 09:40 (UTC-5)._
+_Última actualización: sáb 28-nov-2026 10:00 (UTC-5)._
 
 ## Hecho
 
@@ -103,3 +103,20 @@ Pendiente:
 - n8n Cloud llega a Supabase por el Session pooler (la conexión directa es solo IPv6) y pide el certificado CA de Supabase con SSL `Require`.
 - GitHub nunca muestra el valor de un secreto: no sirve para compartir claves.
 - Vincular facturación en AI Studio pasa la cuenta a pago, y el crédito de prueba de Google Cloud no cubre la API de Gemini.
+
+## Al 28-nov 10:00 · Ahorro y declaraciones (#13, rama `docs/13-ahorro-declaraciones`)
+
+Hecho:
+- `docs/ahorro.md`: fórmula en dos bloques. A · asistencia, por lista de un curso en un día. B · seguimiento, por falta gestionada. El período es una semana y se mide el tiempo del colegio. Las citas salen solo del README. Todos los minutos son [Hipótesis] y la proyección con las 706 faltas es [Simulación] (70,6 h en sep-dic, no semanal). Medición pendiente: cronometrar en un colegio piloto.
+- `AI_USAGE.md`: filas del 28-nov (WF1, WF3, #13) y la sección «IA dentro del producto».
+- `PRIOR_WORK.md`: notas de `../prep/` separadas en «antes de las 17:00» y «dentro de la ventana, fuera del repo», y tabla de terceros.
+- Verificado: el ejemplo da 0,5 h, cada cita aparece en el README o en los contratos y `node --test` pasa 44/44.
+
+Pendiente:
+- Brandon (Antigravity) y Jorge (Codex y Antigravity): para qué usaron cada herramienta y qué entregaron. Cuando lo confirmen, se cierra #13.
+- «Qué se reutilizó» de `00`, `01` y `03` sigue [por confirmar], igual que la licencia de `segno`.
+- Latencia del tótem (< 2 s) y del bot sin medir. Al medirlas se rotulan «medido en el prototipo, no en un colegio».
+
+Aprendido:
+- No hubo entrevistas. La evidencia es el estudio del Ministerio (README) y el dataset ficticio.
+- Un encargo sin `-Worktree` no se puede reanudar. Para iterar con el mismo agente, el primer encargo se lanza con `-Worktree`.
