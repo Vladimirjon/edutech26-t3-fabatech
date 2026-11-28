@@ -90,11 +90,14 @@ test('WF4 mantiene SQL parametrizado sincronizado y un único CTE idempotente co
   assert.equal(decision.parameters.query, leer('./esquema/wf4_decision.sql'));
 
   const qCtx = contexto.parameters.query;
-  assert.match(qCtx, /\$1::text ~ '\^\\d\+\$'/);
+  assert.match(qCtx, /\$1::text ~ '\^\\d\{1,18\}\$'/);
   assert.match(qCtx, /clave = 'inspector_chat_id'/);
   assert.match(qCtx, /telegram_chat_id::text/);
 
   const qDec = decision.parameters.query;
+  assert.match(qDec, /\$1::text ~ '\^\\d\{1,18\}\$'/);
+  assert.doesNotMatch(qDec, /to_date\s*\(/i);
+  assert.match(qDec, /f\.fecha::text\s*=\s*fo\.fecha_txt/i);
   assert.match(qDec, /for update of j/i);
   assert.match(qDec, /estado in \('pendiente',\s*'revision_manual'\)/i);
   assert.match(qDec, /update public\.justificativos/i);
@@ -213,6 +216,35 @@ test('Preparar mensaje inspector formatea resumen, revisión manual, foto y esca
   assert.match(revisionSinDatos.mensaje, /Fechas: Sin fechas/);
   assert.match(revisionSinDatos.mensaje, /Faltó\\_ayer \\\*urgente\\\* \\`\\\[ver\]/);
   assert.match(revisionSinDatos.mensaje, /❌ C5: estudiante\\_codigo\\_invalido/);
+
+  const conReglasNulasYBackslash = correr({
+    id: '45',
+    estado: 'revision_manual',
+    foto_file_id: null,
+    inspector_chat_id: '777001',
+    estudiante_codigo: null,
+    estudiante_nombre: null,
+    curso: null,
+    paralelo: null,
+    mensaje_original: 'foo\\_bar',
+    extraccion: null,
+    validacion: {
+      fechas: [],
+      reglas: [null, 'invalida', 123, { id: 'R1', ok: true, detalle: 'ok' }],
+    },
+  });
+  assert.match(conReglasNulasYBackslash.mensaje, /foo\\\\\\_bar/);
+  assert.match(conReglasNulasYBackslash.mensaje, /✅ R1: ok/);
+
+  const soloReglasNulas = correr({
+    id: '46',
+    estado: 'revision_manual',
+    foto_file_id: null,
+    inspector_chat_id: '777001',
+    extraccion: null,
+    validacion: { reglas: [null] },
+  });
+  assert.match(soloReglasNulas.mensaje, /ℹ️ Sin detalle de reglas/);
 });
 
 test('Preparar aviso familia emite texto exacto en aprobación y mensaje cálido <=300 chars en rechazo', () => {
