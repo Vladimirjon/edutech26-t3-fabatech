@@ -1,7 +1,7 @@
 with entrada as (
     select
         case
-            when $1::text ~ '^\d+$' then $1::bigint
+            when $1::text ~ '^\d{1,18}$' then $1::bigint
             else null::bigint
         end as id,
         case
@@ -40,7 +40,7 @@ with entrada as (
         j.estado as decision,
         o.inspector_chat_id
 ), fechas_objetivo as materialized (
-    select distinct v.fecha_valida as fecha
+    select distinct f.fecha_txt
     from actualizado a
     cross join lateral jsonb_array_elements_text(
         case
@@ -51,15 +51,17 @@ with entrada as (
             else '[]'::jsonb
         end
     ) as f(fecha_txt)
-    cross join lateral (
-        select case
-            when f.fecha_txt ~ '^\d{4}-\d{2}-\d{2}$'
-             and to_char(to_date(f.fecha_txt, 'YYYY-MM-DD'), 'YYYY-MM-DD') = f.fecha_txt
-            then to_date(f.fecha_txt, 'YYYY-MM-DD')
-            else null::date
-        end as fecha_valida
-    ) as v
-    where v.fecha_valida is not null
+    where f.fecha_txt ~ '^\d{4}-\d{2}-\d{2}$'
+      and substring(f.fecha_txt, 6, 2)::int between 1 and 12
+      and substring(f.fecha_txt, 9, 2)::int between 1 and (
+          case
+              when substring(f.fecha_txt, 6, 2)::int in (1, 3, 5, 7, 8, 10, 12) then 31
+              when substring(f.fecha_txt, 6, 2)::int in (4, 6, 9, 11) then 30
+              when substring(f.fecha_txt, 1, 4)::int % 4 = 0
+               and (substring(f.fecha_txt, 1, 4)::int % 100 <> 0 or substring(f.fecha_txt, 1, 4)::int % 400 = 0) then 29
+              else 28
+          end
+      )
 ), faltas_actualizadas as materialized (
     update public.faltas f
     set estado = case
@@ -70,7 +72,11 @@ with entrada as (
     where a.estudiante_codigo is not null
       and exists (select 1 from fechas_objetivo)
       and f.estudiante_codigo = a.estudiante_codigo
-      and f.fecha in (select fecha from fechas_objetivo)
+      and exists (
+          select 1
+          from fechas_objetivo fo
+          where f.fecha::text = fo.fecha_txt
+      )
       and (
           (a.decision = 'aprobado' and f.estado in ('injustificada', 'pendiente'))
           or (a.decision = 'rechazado' and f.estado = 'pendiente')
@@ -96,7 +102,7 @@ with entrada as (
             'decision', a.decision,
             'estudiante_codigo', a.estudiante_codigo,
             'faltas_actualizadas', (select count(*) from faltas_actualizadas),
-            'fechas', coalesce((select jsonb_agg(fecha::text order by fecha) from fechas_objetivo), '[]'::jsonb)
+            'fechas', coalesce((select jsonb_agg(fecha_txt order by fecha_txt) from fechas_objetivo), '[]'::jsonb)
         )
     from actualizado a
 )
@@ -105,7 +111,7 @@ select
     a.decision,
     r.telegram_chat_id::text as telegram_chat_id,
     e.nombre_ficticio as estudiante_nombre,
-    coalesce((select jsonb_agg(fecha::text order by fecha) from fechas_objetivo), '[]'::jsonb) as fechas,
+    coalesce((select jsonb_agg(fecha_txt order by fecha_txt) from fechas_objetivo), '[]'::jsonb) as fechas,
     a.extraccion->>'motivo' as motivo,
     case
         when a.id is not null then (select count(*)::int from faltas_actualizadas)

@@ -1,6 +1,6 @@
 with entrada as (
     select case
-        when $1::text ~ '^\d+$' then $1::bigint
+        when $1::text ~ '^\d{1,18}$' then $1::bigint
         else null::bigint
     end as id
 )
