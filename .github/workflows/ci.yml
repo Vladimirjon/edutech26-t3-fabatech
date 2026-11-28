@@ -11,8 +11,9 @@ permissions:
 jobs:
   estructura:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -24,10 +25,10 @@ jobs:
           done
           exit $faltan
       - name: Sin archivos .env en el repositorio
+        shell: bash
         run: |
-          if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$'; then
-            echo "::error::Hay un archivo .env versionado"; exit 1
-          fi
+          git ls-files -z -- ':(glob)**/.env' ':(glob)**/.env.*' ':(exclude,glob)**/.env.example' |
+            python3 -c 'import sys; sys.exit("::error::Hay un archivo .env versionado" if sys.stdin.buffer.read() else 0)'
       - name: Escanear el historial con Gitleaks
         shell: bash
         env:
@@ -37,6 +38,7 @@ jobs:
           asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           archive="$RUNNER_TEMP/$asset"
           curl --fail --silent --show-error --location --retry 3 \
+            --connect-timeout 10 --max-time 45 --retry-max-time 90 \
             --output "$archive" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${asset}"
           printf '%s  %s\n' "$GITLEAKS_SHA256" "$archive" | sha256sum --check --status
@@ -47,4 +49,12 @@ jobs:
           node-version: '24.22.3'
           package-manager-cache: false
       - name: Validar exports de n8n y ejecutar pruebas
-        run: node --test
+        shell: bash
+        run: |
+          if [[ ! -f tests/workflows-n8n.test.mjs ]]; then
+            echo '::error file=tests/workflows-n8n.test.mjs::Falta la suite de validación de n8n.'
+            exit 1
+          fi
+          node --test tests/workflows-n8n.test.mjs "tests/**/*.test.{cjs,mjs,js}"
+      - name: Verificar migraciones y seed en PostgreSQL
+        run: python3 scripts/probar_esquema.py

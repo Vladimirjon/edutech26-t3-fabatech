@@ -8,7 +8,7 @@ Usamos IA para construir. Una persona del equipo revisa cada cambio antes de fus
 | --- | --- | --- | --- |
 | Claude Code (Anthropic) | Claude | Lectura de las guías, plan de arquitectura, esqueleto del repositorio y revisión de cambios | Johann |
 | Codex (OpenAI) | GPT | Investigación de dominio con fuentes. Implementación del esquema, del seed y del PDF de carnés (#3) a partir de un encargo escrito | Johann |
-| Codex (OpenAI) | GPT | Implementación y pruebas del CI del issue #5 | Jorge (revisión pendiente) |
+| Codex (OpenAI) | GPT | Implementación y pruebas del CI del #5, ajustes del dictamen e integración de las pruebas de esquema del #3 | Jorge (revisión pendiente) |
 | Antigravity (Google) | Gemini | Análisis exploratorio del dataset, revisión cruzada de la arquitectura y del esquema (#3) | Johann |
 
 ## IA dentro del producto
