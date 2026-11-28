@@ -1,6 +1,6 @@
 # Plan de construcción y entrega de Pórtika
 
-Del vie 27-nov 19:00 al sáb 28-nov 14:00 (UTC-5). Cada fila es un issue en GitHub con dueño e hito (issue de GitHub = número de la fila + 2; el ensayo es el #16). Los formatos entre piezas están en [`contratos.md`](contratos.md): con ellos casi todo avanza en paralelo. Hitos: **CP2 · sáb 12:30** (demo de punta a punta desplegada) y **Entrega · sáb 14:00**.
+Del vie 27-nov 19:00 al sáb 28-nov 14:00 (UTC-5). Cada fila es un issue en GitHub con dueño e hito (issue de GitHub = número de la fila + 2; el ensayo es el #16 y el aprovisionamiento, el #19). Los formatos entre piezas están en [`contratos.md`](contratos.md): con ellos casi todo avanza en paralelo. Hitos: **CP2 · sáb 12:30** (demo de punta a punta desplegada) y **Entrega · sáb 14:00**.
 
 ## Orden de construcción
 
@@ -22,13 +22,14 @@ Primero el camino crítico del demo y después lo demás.
 | 12 | Pitch: guion de 3 minutos, `docs/pitch.pdf`, video de respaldo de 60 s y 2 ensayos | Johann | Guion: ninguna; video: 8 y 9 | Entrega | Ensayo cronometrado en 3:00 o menos |
 | 13 | Entrega: tag `entrega` (13:30–13:40) y formulario con las 3 declaraciones | Johann | todo | Entrega | Llega el correo con el hash evaluado |
 | 14 | Ensayo integral en producción antes de las 10:00: QR, cierre, aviso, respuesta, aprobación y cambio en el tablero | Jorge (con todo el equipo) | 3–9 | CP2 | El flujo completo corre en producción sin intervención manual |
+| 17 (#19) | Aprovisionamiento: bots Pórtika y Pórtika dev, credenciales de n8n, variables y GitHub Secrets | Brandon | — | CP2 | Los dos bots y las credenciales funcionan; variables y secretos de C9 cargados |
 
 ## Camino crítico
 
 **1 → 5 → 6 → 8 → 14.** Si una de estas se atrasa, se atrasa el demo. Lo demás corre en paralelo, en tres carriles:
 
 - **Johann:** 1 (primero, desbloquea a todos) → prompts y reglas de 7 → 11 → guion de 12 → 13.
-- **Brandon:** 2 → 5 → 6 → 8 → 10.
+- **Brandon:** #19 y 2 → 5 → 6 → 8 → 10.
 - **Jorge:** CI de 3 → 4 contra C2 → 9 → CD de 3 → 14.
 
 ## Cronograma

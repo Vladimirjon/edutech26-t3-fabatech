@@ -17,6 +17,13 @@ _Última actualización: vie 27-nov-2026 18:20 (UTC-5)._
 
 - **Checkpoint 1, vie 19:00**: README con problema, usuario, evidencia y arquitectura, más `docs/arquitectura.png`.
 
+## Al 27-nov 20:10
+
+- El producto se llama **Pórtika** (app y bot).
+- Contratos entre piezas en `docs/contratos.md`.
+- Issues #3 a #16 redactados a fondo (Codex), revisados (Antigravity) y verificados (Claude). Nuevo #19: aprovisionamiento.
+- Lección: Antigravity inventó URLs en una investigación web; sus fuentes se verifican siempre antes de usarlas.
+
 ## Decisiones tomadas
 
 | Decisión | Motivo |
