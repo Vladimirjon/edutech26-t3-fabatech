@@ -57,7 +57,8 @@ _Última actualización: sáb 28-nov-2026 04:30 (UTC-5)._
 - PR #20 (Jorge): CI en verde, en borrador. Faltan CD y prueba de humo, que esperan a los workflows. #6 y #11 sin ramas.
 - Ningún workflow del demo subido todavía (#7 a #10 y #12).
 
-- #9 (parte de Johann) en la rama `feat/09-prompts-reglas`: reglas C6 en `n8n/codigo/c6-reglas.js` (se pegan en el nodo Code «Reglas C6»), pruebas en `tests/c6-reglas.test.mjs` y prompts en `docs/prompts-wf3.md`. Tras la revisión de Codex: R3 manda (fecha futura o fuera de plazo → `rechazado`, como C6), y si R2 falla `fechas` sale vacía (las pedidas van en `fechas_pedidas`) para que C7 no reabra faltas ya justificadas. Prompts probados en AI Studio con texto, foto y voz (tabla en `docs/prompts-wf3.md`). Falta probarlos dentro de n8n.
+- #9 (parte de Johann) fusionado en `main` (PR #23): reglas C6 en `n8n/codigo/c6-reglas.js` (se pegan en el nodo Code «Reglas C6»), pruebas en `tests/c6-reglas.test.mjs` y prompts en `docs/prompts-wf3.md`. Tras la revisión de Codex: R3 manda (fecha futura o fuera de plazo → `rechazado`, como C6), y si R2 falla `fechas` sale vacía (las pedidas van en `fechas_pedidas`) para que C7 no reabra faltas ya justificadas. Prompts probados en AI Studio con texto, foto y voz (tabla en `docs/prompts-wf3.md`). Falta probarlos dentro de n8n.
+- #7 WF1 · Ingreso **publicado** en n8n (id `2n7b6lYPCNvRyc7e`, rama `feat/07-wf1-ingreso`). Lo implementó Codex, lo revisó Antigravity. Consulta probada en Postgres 15.8 (401 y 404 sin escrituras, registrado, duplicado, 6 escaneos simultáneos → una sola fila) y en producción con el carné de humo (`duplicado`, hora con `-05:00`). La clave del dispositivo se rotó el 28-nov tras exponerse en el chat. Falta probar el CORS desde `portika.vercel.app`.
 
 ### Aprendido (28-nov)
 
