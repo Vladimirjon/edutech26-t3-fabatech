@@ -22,7 +22,7 @@ Primero el camino crítico del demo y después lo demás.
 | 12 | Pitch: guion de 3 minutos, `docs/pitch.pdf`, video de respaldo de 60 s y 2 ensayos | Johann | Guion: ninguna; video: 8 y 9 | Entrega | Ensayo cronometrado en 3:00 o menos |
 | 13 | Entrega: tag `entrega` (13:30–13:40) y formulario con las 3 declaraciones | Johann | todo | Entrega | Llega el correo con el hash evaluado |
 | 14 | Ensayo integral en producción antes de las 10:00: QR, cierre, aviso, respuesta, aprobación y cambio en el tablero | Jorge (con todo el equipo) | 3–9 | CP2 | El flujo completo corre en producción sin intervención manual |
-| 17 (#19) | Aprovisionamiento: bots Pórtika y Pórtika dev, credenciales de n8n, variables y GitHub Secrets | Brandon | — | CP2 | Los dos bots y las credenciales funcionan; variables y secretos de C9 cargados |
+| 17 (#19) | Aprovisionamiento: bots Pórtika y Pórtika dev, credenciales de n8n, filas de `configuracion` y GitHub Secrets | Brandon | — | CP2 | Los dos bots y las credenciales funcionan; filas de `configuracion` y secretos de C9 cargados |
 
 ## Camino crítico
 
