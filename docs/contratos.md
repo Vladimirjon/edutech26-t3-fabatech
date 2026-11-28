@@ -104,7 +104,7 @@ Efectos de un `registrado`:
 
 ## C5 · Extracción con Gemini (WF3)
 
-Modelo: **Gemini 3.5 Flash Lite** en el nivel gratis de AI Studio (500 llamadas al día; Gemini 3.8 Flash solo da 20, según el cupo que el equipo vio en AI Studio el 28-nov), con la credencial `Gemini Portika`. Probarlo con una foto y una nota de voz antes de fijarlo.
+Modelo: **Gemini 3.5 Flash Lite** en el nivel gratis de AI Studio (500 llamadas al día; Gemini 3.8 Flash solo da 20, según el cupo que el equipo vio en AI Studio el 28-nov), con la credencial `Gemini Portika`. Probado en AI Studio el 28-nov con texto, foto y nota de voz `.ogg` (resultados en `docs/prompts-wf3.md`).
 
 Entrada: el texto, la transcripción de la voz o la imagen, junto con el contexto que se le pasa al modelo:
 - los hijos del representante (código y curso);
